@@ -8,7 +8,7 @@ from functools import wraps
 from io import StringIO
 
 from django.contrib import messages
-from django.contrib.auth import get_user_model
+from django.contrib.auth import authenticate, get_user_model, login as auth_login, logout as auth_logout
 from django.contrib.sessions.models import Session
 from django.db.models import Q
 from django.http import HttpRequest, HttpResponse
@@ -222,6 +222,8 @@ def _get_client_ip(request: HttpRequest) -> str | None:
 
 
 def _actor_user(request: HttpRequest) -> User | None:
+    if request.user and request.user.is_authenticated:
+        return request.user
     actor_id = request.session.get("hrms_actor_user_id")
     if actor_id:
         return User.objects.filter(id=actor_id).first()
@@ -232,24 +234,8 @@ def _actor_or_fallback_user(request: HttpRequest) -> User:
     actor = _actor_user(request)
     if actor:
         return actor
-    fallback = (
-        User.objects.filter(is_superuser=True).first()
-        or User.objects.order_by("id").first()
-    )
-    if fallback:
-        return fallback
-    user = User.objects.create_user(
-        username="system_operator",
-        email="system.operator@hospital.local",
-        password="Welcome@123",
-        first_name="System",
-        last_name="Operator",
-    )
-    UserProfile.objects.update_or_create(
-        user=user,
-        defaults={"role": RoleChoices.ADMIN, "department": "Health IT"},
-    )
-    return user
+    # role_guard should guarantee an authenticated actor for these actions.
+    raise RuntimeError("Authenticated user context is required for this action.")
 
 
 def _log_audit_event(
@@ -279,8 +265,6 @@ def _log_audit_event(
 
 
 def _ensure_session_from_authenticated_user(request: HttpRequest) -> None:
-    if _has_demo_session(request):
-        return
     if not request.user or not request.user.is_authenticated:
         return
     role = _profile_role_to_demo(get_user_role(request.user))
@@ -467,6 +451,8 @@ def role_guard(*allowed_roles: str):
         @wraps(view_func)
         def wrapped(request: HttpRequest, *args, **kwargs):
             _ensure_seed_data()
+            if not request.user or not request.user.is_authenticated:
+                return redirect("hrms-login")
             _ensure_session_from_authenticated_user(request)
             if not _has_demo_session(request):
                 return redirect("hrms-login")
@@ -519,6 +505,9 @@ def _filter_audit_events(request: HttpRequest):
 @require_http_methods(["GET", "POST"])
 def hrms_login(request: HttpRequest) -> HttpResponse:
     _ensure_seed_data()
+    if request.user and request.user.is_authenticated:
+        _ensure_session_from_authenticated_user(request)
+        return redirect(_landing_for(_get_role(request)))
     error = ""
 
     if request.method == "POST":
@@ -535,11 +524,33 @@ def hrms_login(request: HttpRequest) -> HttpResponse:
                 | Q(email__iexact=staff)
             ).first()
             if actor:
-                if not actor.check_password(password):
+                authenticated_actor = authenticate(
+                    request,
+                    username=actor.username,
+                    password=password,
+                )
+                if not authenticated_actor:
                     error = "Incorrect password. You have 2 attempts remaining."
+                    _log_audit_event(
+                        request,
+                        action_type="login_failed",
+                        outcome=AuditEvent.Outcome.DENIED,
+                        details=f"Failed login attempt for {staff}",
+                    )
                 elif not actor.is_active:
                     error = "Account is disabled. Contact Records Administration."
+                    _log_audit_event(
+                        request,
+                        action_type="login_failed_disabled",
+                        outcome=AuditEvent.Outcome.DENIED,
+                        details=f"Disabled account attempted login: {staff}",
+                    )
                 else:
+                    auth_login(
+                        request,
+                        authenticated_actor,
+                        backend="django.contrib.auth.backends.ModelBackend",
+                    )
                     role = _profile_role_to_demo(get_user_role(actor))
                     request.session["hrms_actor_user_id"] = actor.id
                     request.session["hrms_demo_role"] = role
@@ -550,22 +561,6 @@ def hrms_login(request: HttpRequest) -> HttpResponse:
                         details=f"Role resolved as {role}",
                     )
                     return redirect(_landing_for(role))
-            elif password == "Welcome@123":
-                inferred_role = "nurse"
-                staff_upper = staff.upper()
-                if staff_upper.startswith("ADM"):
-                    inferred_role = "admin"
-                elif staff_upper.startswith("DOC"):
-                    inferred_role = "doctor"
-                request.session["hrms_demo_role"] = inferred_role
-                request.session["hrms_demo_user"] = f"{staff_upper} / {_role_label(inferred_role)} User"
-                request.session["hrms_actor_user_id"] = None
-                _log_audit_event(
-                    request,
-                    action_type="login_success_demo",
-                    details=f"Demo login for {staff} as {inferred_role}",
-                )
-                return redirect(_landing_for(inferred_role))
             else:
                 error = "Incorrect password. You have 2 attempts remaining."
                 _log_audit_event(
@@ -584,6 +579,8 @@ def hrms_login(request: HttpRequest) -> HttpResponse:
 
 def hrms_root(request: HttpRequest) -> HttpResponse:
     _ensure_seed_data()
+    if not request.user or not request.user.is_authenticated:
+        return redirect("hrms-login")
     _ensure_session_from_authenticated_user(request)
     if "hrms_demo_role" not in request.session:
         return redirect("hrms-login")
@@ -592,6 +589,7 @@ def hrms_root(request: HttpRequest) -> HttpResponse:
 
 def hrms_logout(request: HttpRequest) -> HttpResponse:
     _log_audit_event(request, action_type="logout")
+    auth_logout(request)
     for key in ("hrms_demo_role", "hrms_demo_user", "hrms_actor_user_id"):
         if key in request.session:
             del request.session[key]
@@ -1046,6 +1044,20 @@ def patient_record_default_redirect(request: HttpRequest) -> HttpResponse:
 @role_guard("nurse", "doctor")
 def patient_record_page(request: HttpRequest, pk: int) -> HttpResponse:
     patient = get_object_or_404(PatientRecord.objects.select_related("attending_doctor"), id=pk)
+    actor = _actor_or_fallback_user(request)
+    log_record_access(
+        user=actor,
+        patient_record=patient,
+        action=AccessLog.AccessAction.VIEW,
+        request=request,
+        notes="Patient record view opened",
+    )
+    _log_audit_event(
+        request,
+        action_type="view_patient_record",
+        patient_ref=patient.hospital_id,
+        details="Record tab opened",
+    )
     context = _build_context(
         request,
         page_title="Patient Record",

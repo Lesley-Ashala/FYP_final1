@@ -1,18 +1,18 @@
-# Hospital Record Access Monitoring (Django + Isolation Forest)
+# Hospital Record Access Monitoring System (Django + Isolation Forest)
 
-Lightweight Django application for hospital patient-record monitoring with:
+This project is a lightweight hospital record monitoring system designed for low-resource environments.
 
-- Role-based authentication (`doctor`, `nurse`, `admin`)
-- Patient record CRUD
-- Automatic record access logging
+It implements:
+- Django authentication with role-based access (`admin`, `doctor`, `nurse`)
+- Patient record module (CRUD)
+- Automatic access logging for EHR interactions
 - Isolation Forest anomaly detection
-- Built-in evaluation metrics on labeled synthetic anomalies
-- SQLite default setup for low-resource environments
+- Automated anomaly alerting
+- Built-in evaluation metrics and tabular reporting
 
-## 1) Project Setup
+## 1) Setup
 
-Recommended Python: **3.13.x** on Windows.
-Python 3.14 often triggers source builds for `scikit-learn`/`scipy` and can fail.
+Recommended Python: **3.13.x** (Python 3.14 may fail building `scikit-learn` wheels on Windows).
 
 ```bash
 py -3.13 -m venv .venv
@@ -22,139 +22,127 @@ pip install -r requirements.txt
 python manage.py migrate
 ```
 
-## 2) Generate Synthetic Dataset
-
-Creates demo users, patient records, access logs, and CSV export:
-
-```bash
-python manage.py generate_synthetic_logs --events 3000 --anomaly-rate 0.08 --days 30 --reset-simulated
-```
-
-CSV output: `data/hospital_access_logs.csv`
-
-If you only need a standalone CSV without Django DB insertion:
-
-```bash
-python scripts/generate_dataset_csv.py --events 2000 --anomaly-rate 0.08 --days 30
-```
-
-Examiner-friendly minimal format (`user_id, role, access_time, patients_accessed, session_duration, label`):
-
-```bash
-python scripts/generate_exam_synthetic_dataset.py --records 10000 --anomaly-rate 0.10
-```
-
-Output: `data/synthetic_hospital_access_10000.csv`
-
-## 3) Run the Web App
+## 2) Run
 
 ```bash
 python manage.py runserver
 ```
 
-Default landing page: `http://127.0.0.1:8000/` (redirects to HRMS login).
-Legacy Django auth login page: `http://127.0.0.1:8000/accounts/login/`
+Main URLs:
+- HRMS login: `http://127.0.0.1:8000/hrms/login/`
+- Admin monitor UI: `http://127.0.0.1:8000/hrms/admin-dashboard/`
+- Legacy monitoring pages: `http://127.0.0.1:8000/patients/`, `http://127.0.0.1:8000/access-logs/`, `http://127.0.0.1:8000/anomalies/`, `http://127.0.0.1:8000/evaluations/`
 
-## HRMS High-Fidelity UI Prototype (RBAC Frames)
+Seeded HRMS users (password: `Welcome@123`):
+- `ADM-0192` (admin)
+- `DOC-0458` (doctor)
+- `NUR-1142` (nurse)
 
-Product-design prototype routes are available under:
+Synthetic-data users (password: `Hospital123!`):
+- `admin_mike`, `doctor_amy`, `doctor_bob`, `doctor_lina`, `nurse_ella`, `nurse_omar`, `nurse_sara`
 
-- `http://127.0.0.1:8000/hrms/login/`
-- `http://127.0.0.1:8000/hrms/otp/`
-- `http://127.0.0.1:8000/hrms/admin-dashboard/`
-- `http://127.0.0.1:8000/hrms/users/`
-- `http://127.0.0.1:8000/hrms/roles-permissions/`
-- `http://127.0.0.1:8000/hrms/system-settings/`
-- `http://127.0.0.1:8000/hrms/nurse-dashboard/`
-- `http://127.0.0.1:8000/hrms/patient-search/`
-- `http://127.0.0.1:8000/hrms/patient-record/` (auto-selects first patient)
-- `http://127.0.0.1:8000/hrms/patient-record/<patient_id>/`
-- `http://127.0.0.1:8000/hrms/shift-handover/`
-- `http://127.0.0.1:8000/hrms/audit-logs/`
-- `http://127.0.0.1:8000/hrms/alerts/`
-- `http://127.0.0.1:8000/hrms/investigations/`
-- `http://127.0.0.1:8000/hrms/user-flow/`
+## 3) Generate Synthetic Dataset
 
-On `hrms/login`, use:
-
-- Demo password: `Welcome@123`
-- Optional MFA OTP code: `482913`
-- Roles: Super Admin, Records Admin, Nurse, Doctor/Clinician, Auditor, Security Officer
-
-The prototype includes RBAC route guards, role-based action visibility, toasts, modals, empty/loading/error states, and security microcopy.
-
-Most HRMS buttons are now backend-wired (create/disable/reset users, assign role, force MFA, save settings, save permissions with reason, patient access reason prompt, add vitals/notes, alert triage/closure, case notes/closure, audit CSV export based on role).
-
-Seeded users (all password: `Hospital123!`):
-
-- `doctor_amy` (doctor)
-- `doctor_bob` (doctor)
-- `doctor_lina` (doctor)
-- `nurse_ella` (nurse)
-- `nurse_omar` (nurse)
-- `nurse_sara` (nurse)
-- `admin_mike` (admin)
-
-HRMS seeded staff (password: `Welcome@123`, auto-created on first HRMS load):
-
-- `ADM-0192` (Super Admin)
-- `REC-1034` (Records Admin)
-- `NUR-1142` (Nurse)
-- `DOC-0458` (Doctor/Clinician)
-- `AUD-0083` (Auditor)
-- `SEC-0217` (Security Officer)
-
-## 4) Run Anomaly Detection
-
-One-time run:
+Generate realistic logs in DB + CSV:
 
 ```bash
-python manage.py run_anomaly_detection --contamination 0.08
+python manage.py generate_synthetic_logs --events 10000 --anomaly-rate 0.08 --days 30 --reset-simulated
 ```
 
-Recent window only:
+CSV output:
+- `data/hospital_access_logs.csv`
+
+Examiner-friendly minimal dataset format:
 
 ```bash
-python manage.py run_anomaly_detection --last-hours 168
+python scripts/generate_exam_synthetic_dataset.py --records 10000 --anomaly-rate 0.10
 ```
 
-Periodic execution (no external cloud service required):
+Output:
+- `data/synthetic_hospital_access_10000.csv`
+
+## 4) Extract Behavioral Features (Objective iii)
 
 ```bash
-python manage.py start_periodic_detection --interval-seconds 300 --window-hours 168
+python manage.py extract_access_features --last-hours 720 --output data/access_behavior_features.csv
 ```
 
-## 5) Evaluate Model Performance
-
-Runs detector against labeled synthetic anomalies and stores metrics:
-
-```bash
-python manage.py evaluate_detection --contamination 0.08 --autogenerate
-```
-
-Metrics computed:
-
-- Precision
-- Recall
-- False Positive Rate
-- Anomaly Detection Rate
-- Execution Time
-
-Results are printed in CLI table format and shown in the web UI (`/evaluations/`).
-
-## Behavioral Features Used
-
-Isolation Forest is trained on the following per-event features:
-
+Extracted features:
 - `access_frequency_per_user`
 - `time_of_day_access_deviation`
 - `unique_patients_accessed`
 - `role_based_access_deviation`
 
-## Key Files
+## 5) Run Anomaly Detection (Objective iv + automated alerts)
 
-- `monitoring/models.py`: roles, patient records, access logs, detection/evaluation results
-- `monitoring/views.py`: role-gated CRUD, anomaly/evaluation pages, trigger endpoints
-- `monitoring/services.py`: feature extraction, Isolation Forest run, metric computation
-- `monitoring/synthetic.py`: realistic synthetic dataset generation
-- `monitoring/management/commands/`: dataset generation, detection, periodic runner, evaluation
+```bash
+python manage.py run_anomaly_detection --contamination 0.08
+```
+
+What happens automatically:
+- Isolation Forest is trained on access behavior features.
+- Abnormal events are flagged (`is_flagged=True`).
+- Risk score is assigned (`risk_score`).
+- Severity is assigned (`low/medium/high/critical`).
+- Alert state is created/opened (`alert_status=open`) for admin triage.
+
+Periodic run:
+
+```bash
+python manage.py start_periodic_detection --interval-seconds 300 --window-hours 168
+```
+
+## 6) Evaluate Detection Performance (Objective vi)
+
+```bash
+python manage.py evaluate_detection --contamination 0.08 --autogenerate
+```
+
+Computed metrics:
+- Precision
+- Recall
+- False Positive Rate
+- Anomaly Detection Rate
+- Execution Time (ms)
+
+Evaluation table is printed in CLI and stored in DB for `/evaluations/`.
+
+## 7) Objective-to-Implementation Mapping (Viva Defense)
+
+### i) Authenticate hospital users through a secure login system
+- Django auth-based login is enforced in HRMS (`monitoring/hrms_views.py`, `hrms_login` + `role_guard`).
+- Role resolution from user profile (`monitoring/permissions.py`, `get_user_role`).
+- Protected views require authenticated users and role checks.
+
+### ii) Log all EHR access activities performed by authenticated users
+- Access logging service: `monitoring/services.py`, `log_record_access`.
+- Record-view/update/create/delete flows call `log_record_access`.
+- Access logs stored in `AccessLog` table (`monitoring/models.py`).
+
+### iii) Extract access behavior features from recorded access logs
+- Feature engineering pipeline: `monitoring/services.py`, `build_feature_dataframe`.
+- Optional CSV export command: `monitoring/management/commands/extract_access_features.py`.
+
+### iv) Detect anomalous hospital record access patterns using Isolation Forest
+- Isolation Forest pipeline: `monitoring/services.py`, `run_isolation_forest_detection`.
+- CLI trigger: `run_anomaly_detection`.
+
+### v) Present detected anomalous activities through an admin monitoring interface
+- Alert/anomaly pages:
+  - `/anomalies/` (legacy monitor)
+  - `/hrms/alerts/` and `/hrms/investigations/` (admin workflow)
+- RBAC limits these screens to admin.
+
+### vi) Evaluate performance using precision, recall, false positive rate, anomaly detection rate, execution time
+- Evaluation logic: `monitoring/services.py`, `evaluate_detector`.
+- Evaluation command: `evaluate_detection`.
+- UI table at `/evaluations/`.
+
+## 8) Core Files
+
+- `monitoring/models.py` -> users/roles, patient records, access logs, detection runs, evaluation results
+- `monitoring/services.py` -> logging, feature extraction, detection, alert automation, evaluation
+- `monitoring/views.py` -> CRUD + monitoring pages + run actions
+- `monitoring/hrms_views.py` -> role-based HRMS pages and admin alert workflow
+- `monitoring/synthetic.py` -> synthetic dataset generation
+- `monitoring/management/commands/` -> operational commands

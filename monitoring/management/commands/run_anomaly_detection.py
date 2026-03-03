@@ -39,4 +39,5 @@ class Command(BaseCommand):
         self.stdout.write(f"- Detection run ID: {summary.run_id}")
         self.stdout.write(f"- Total events analyzed: {summary.total_events}")
         self.stdout.write(f"- Anomalies flagged: {summary.anomalies_flagged}")
+        self.stdout.write(f"- Automated alerts opened/reopened: {summary.automated_alerts_created}")
         self.stdout.write(f"- Execution time (ms): {summary.execution_time_ms:.2f}")

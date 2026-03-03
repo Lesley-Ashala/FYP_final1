@@ -18,6 +18,9 @@
                 <th>Flagged</th>
                 <th>True Anomaly</th>
                 <th>Score</th>
+                <th>Risk</th>
+                <th>Severity</th>
+                <th>Alert Status</th>
                 <th>Source</th>
             </tr>
         </thead>
@@ -32,10 +35,13 @@
                 <td>{{ log.is_flagged|yesno:"Yes,No" }}</td>
                 <td>{{ log.is_true_anomaly|yesno:"Yes,No" }}</td>
                 <td>{{ log.anomaly_score|default:"-" }}</td>
+                <td>{{ log.risk_score|default:"-" }}</td>
+                <td>{{ log.alert_severity|default:"-" }}</td>
+                <td>{{ log.alert_status|default:"-" }}</td>
                 <td>{{ log.is_simulated|yesno:"Synthetic,Live" }}</td>
             </tr>
             {% empty %}
-            <tr><td colspan="9">No access logs found.</td></tr>
+            <tr><td colspan="12">No access logs found.</td></tr>
             {% endfor %}
         </tbody>
     </table>

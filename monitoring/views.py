@@ -181,7 +181,8 @@ def run_detection_view(request: HttpRequest) -> HttpResponseRedirect:
         request,
         (
             f"Detection complete: {summary.anomalies_flagged} anomalies flagged from "
-            f"{summary.total_events} events in {summary.execution_time_ms:.2f} ms."
+            f"{summary.total_events} events in {summary.execution_time_ms:.2f} ms. "
+            f"Automated alerts opened/reopened: {summary.automated_alerts_created}."
         ),
     )
     return redirect("anomaly-list")

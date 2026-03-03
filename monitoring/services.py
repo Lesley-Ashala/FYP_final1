@@ -34,6 +34,7 @@ class DetectionSummary:
     anomalies_flagged: int
     execution_time_ms: float
     contamination: float
+    automated_alerts_created: int = 0
 
 
 def _assert_ml_dependencies() -> None:
@@ -47,6 +48,24 @@ def _assert_ml_dependencies() -> None:
 def _safe_role(user) -> str:
     role = get_user_role(user)
     return role if role else RoleChoices.NURSE
+
+
+def _risk_score_from_model_score(score: float, min_score: float, max_score: float) -> float:
+    if max_score <= min_score:
+        return 50.0
+    normalized = (score - min_score) / (max_score - min_score)
+    bounded = max(0.0, min(1.0, float(normalized)))
+    return round(bounded * 100.0, 2)
+
+
+def _severity_from_risk(risk_score: float) -> str:
+    if risk_score >= 85:
+        return AccessLog.AlertSeverity.CRITICAL
+    if risk_score >= 70:
+        return AccessLog.AlertSeverity.HIGH
+    if risk_score >= 45:
+        return AccessLog.AlertSeverity.MEDIUM
+    return AccessLog.AlertSeverity.LOW
 
 
 def _get_client_ip(request) -> str | None:
@@ -162,6 +181,7 @@ def run_isolation_forest_detection(
             anomalies_flagged=0,
             execution_time_ms=0.0,
             contamination=contamination,
+            automated_alerts_created=0,
         )
 
     model = IsolationForest(
@@ -180,15 +200,53 @@ def run_isolation_forest_detection(
     log_ids = meta["id"].tolist()
     id_to_position = {log_id: idx for idx, log_id in enumerate(log_ids)}
     logs_to_update: list[AccessLog] = []
+    score_min = float(anomaly_scores.min())
+    score_max = float(anomaly_scores.max())
+    automated_alerts_created = 0
 
     for log in AccessLog.objects.filter(id__in=log_ids):
         position = id_to_position[log.id]
-        log.is_flagged = bool(predictions[position] == -1)
-        log.anomaly_score = float(anomaly_scores[position])
+        was_flagged = bool(log.is_flagged)
+        previous_status = log.alert_status
+        is_flagged = bool(predictions[position] == -1)
+        anomaly_score = float(anomaly_scores[position])
+
+        log.is_flagged = is_flagged
+        log.anomaly_score = anomaly_score
+        if is_flagged:
+            risk_score = _risk_score_from_model_score(anomaly_score, score_min, score_max)
+            log.risk_score = risk_score
+            log.alert_severity = _severity_from_risk(risk_score)
+            if log.alert_status != AccessLog.AlertStatus.TRIAGED:
+                log.alert_status = AccessLog.AlertStatus.OPEN
+            if log.closed_reason:
+                log.closed_reason = ""
+            if (not was_flagged) or (previous_status == AccessLog.AlertStatus.CLOSED):
+                automated_alerts_created += 1
+            if not log.notes or log.notes.startswith("auto:"):
+                log.notes = (
+                    f"auto: IsolationForest run #{run.id} flagged this event "
+                    f"(risk={risk_score:.2f})."
+                )[:255]
+        elif was_flagged and log.alert_status == AccessLog.AlertStatus.OPEN:
+            log.alert_status = AccessLog.AlertStatus.CLOSED
+            if not log.closed_reason:
+                log.closed_reason = "Auto-closed: no longer anomalous in latest run"
         logs_to_update.append(log)
 
     if logs_to_update:
-        AccessLog.objects.bulk_update(logs_to_update, ["is_flagged", "anomaly_score"])
+        AccessLog.objects.bulk_update(
+            logs_to_update,
+            [
+                "is_flagged",
+                "anomaly_score",
+                "risk_score",
+                "alert_severity",
+                "alert_status",
+                "notes",
+                "closed_reason",
+            ],
+        )
 
     anomalies_flagged = int((predictions == -1).sum())
     total_events = len(log_ids)
@@ -211,6 +269,7 @@ def run_isolation_forest_detection(
         anomalies_flagged=anomalies_flagged,
         execution_time_ms=execution_time_ms,
         contamination=contamination,
+        automated_alerts_created=automated_alerts_created,
     )
 
 

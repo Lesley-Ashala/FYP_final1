@@ -61,7 +61,8 @@ class Command(BaseCommand):
                 run_count += 1
                 self.stdout.write(
                     f"[Run {run_count}] flagged={summary.anomalies_flagged}/"
-                    f"{summary.total_events} in {summary.execution_time_ms:.2f}ms"
+                    f"{summary.total_events}, alerts={summary.automated_alerts_created}, "
+                    f"time={summary.execution_time_ms:.2f}ms"
                 )
                 if iterations and run_count >= iterations:
                     break

@@ -16,6 +16,9 @@
                 <th>Patient</th>
                 <th>Action</th>
                 <th>Anomaly Score</th>
+                <th>Risk Score</th>
+                <th>Severity</th>
+                <th>Status</th>
                 <th>True Anomaly Label</th>
                 <th>Notes</th>
             </tr>
@@ -29,11 +32,14 @@
                 <td>{% if log.patient_record %}{{ log.patient_record.hospital_id }}{% else %}-{% endif %}</td>
                 <td>{{ log.action }}</td>
                 <td>{{ log.anomaly_score|floatformat:4 }}</td>
+                <td>{{ log.risk_score|floatformat:2 }}</td>
+                <td>{{ log.alert_severity|default:"-" }}</td>
+                <td>{{ log.alert_status|default:"-" }}</td>
                 <td>{{ log.is_true_anomaly|yesno:"Yes,No" }}</td>
                 <td>{{ log.notes|default:"-" }}</td>
             </tr>
             {% empty %}
-            <tr><td colspan="8">No anomalies flagged yet.</td></tr>
+            <tr><td colspan="11">No anomalies flagged yet.</td></tr>
             {% endfor %}
         </tbody>
     </table>
