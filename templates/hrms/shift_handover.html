@@ -1,0 +1,52 @@
+{% extends "hrms/base_shell.html" %}
+
+{% block content %}
+<section class="card">
+    <div class="card-header">
+        <div>
+            <h3 class="card-title">Auto Shift Summary</h3>
+            <p class="card-note">Generated from vitals, nursing notes, due tasks, and alert flags for outgoing shift.</p>
+        </div>
+        <div class="button-row">
+            <button class="btn secondary" data-toast="Printable handover prepared" data-tone="success">Print</button>
+            <button class="btn secondary disabled" disabled>Export</button>
+        </div>
+    </div>
+    <div class="notice warning">
+        Export is restricted for this role. Use print handover sheet or request approval from Records Admin.
+    </div>
+    <div class="grid two">
+        <div>
+            <h4 style="margin:0 0 8px;">Ward C Summary</h4>
+            <p class="card-note">{{ auto_summary }}</p>
+        </div>
+        <div>
+            <h4 style="margin:0 0 8px;">Escalations</h4>
+            <p class="card-note">
+                2 escalation notes filed. 1 pending callback from on-call respiratory team for oxygen adjustment review.
+            </p>
+        </div>
+    </div>
+</section>
+
+<section class="card" style="margin-top:14px;">
+    <h3 class="card-title">Pending Tasks Checklist</h3>
+    <p class="card-note">Complete before handover sign-off.</p>
+    <form method="post" action="{% url 'hrms-signoff-handover' %}">
+        {% csrf_token %}
+        <div class="grid" style="margin-top:10px;">
+            {% for task in pending_tasks %}
+                <label class="checkbox"><input type="checkbox"> {{ task }}</label>
+            {% endfor %}
+        </div>
+        <div class="field" style="margin-top:10px;">
+            <label>Shift note (optional)</label>
+            <textarea class="textarea" name="handover_note" placeholder="Add final handover comment for incoming shift."></textarea>
+        </div>
+        <div class="button-row" style="margin-top:12px;">
+            <button class="btn" type="submit">Sign Off Shift</button>
+            <button class="btn secondary" type="reset">Save Draft</button>
+        </div>
+    </form>
+</section>
+{% endblock %}

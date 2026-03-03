@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2>Evaluation Results</h2>
+    <p class="meta">
+        Metrics: Precision, Recall, False Positive Rate, Anomaly Detection Rate, and Execution Time.
+    </p>
+</div>
+
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>Created At</th>
+                <th>Dataset Size</th>
+                <th>True Anomalies</th>
+                <th>Predicted Anomalies</th>
+                <th>Precision</th>
+                <th>Recall</th>
+                <th>False Positive Rate</th>
+                <th>Anomaly Detection Rate</th>
+                <th>Execution Time (ms)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in evaluations %}
+            <tr>
+                <td>{{ item.created_at }}</td>
+                <td>{{ item.dataset_size }}</td>
+                <td>{{ item.true_anomalies }}</td>
+                <td>{{ item.predicted_anomalies }}</td>
+                <td>{{ item.precision|floatformat:4 }}</td>
+                <td>{{ item.recall|floatformat:4 }}</td>
+                <td>{{ item.false_positive_rate|floatformat:4 }}</td>
+                <td>{{ item.anomaly_detection_rate|floatformat:4 }}</td>
+                <td>{{ item.execution_time_ms|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="9">No evaluation runs yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if is_paginated %}
+<div class="card">
+    {% if page_obj.has_previous %}
+        <a class="btn btn-secondary" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+    {% endif %}
+    <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+        <a class="btn btn-secondary" href="?page={{ page_obj.next_page_number }}">Next</a>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

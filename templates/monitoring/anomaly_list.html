@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2>Flagged Anomalies</h2>
+    <p class="meta">Events classified as abnormal by Isolation Forest.</p>
+</div>
+
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>User</th>
+                <th>Role</th>
+                <th>Patient</th>
+                <th>Action</th>
+                <th>Anomaly Score</th>
+                <th>True Anomaly Label</th>
+                <th>Notes</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in logs %}
+            <tr>
+                <td>{{ log.accessed_at }}</td>
+                <td>{{ log.user.username }}</td>
+                <td>{{ log.role_snapshot }}</td>
+                <td>{% if log.patient_record %}{{ log.patient_record.hospital_id }}{% else %}-{% endif %}</td>
+                <td>{{ log.action }}</td>
+                <td>{{ log.anomaly_score|floatformat:4 }}</td>
+                <td>{{ log.is_true_anomaly|yesno:"Yes,No" }}</td>
+                <td>{{ log.notes|default:"-" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="8">No anomalies flagged yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if is_paginated %}
+<div class="card">
+    {% if page_obj.has_previous %}
+        <a class="btn btn-secondary" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+    {% endif %}
+    <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+        <a class="btn btn-secondary" href="?page={{ page_obj.next_page_number }}">Next</a>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

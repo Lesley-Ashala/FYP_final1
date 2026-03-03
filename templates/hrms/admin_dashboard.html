@@ -1,0 +1,82 @@
+{% extends "hrms/base_shell.html" %}
+
+{% block content %}
+<section class="grid kpi">
+    {% for kpi in kpis %}
+        <article class="card">
+            <p class="metric-label">{{ kpi.label }}</p>
+            <p class="metric-value">{{ kpi.value }}</p>
+            <p class="metric-trend">{{ kpi.trend }}</p>
+        </article>
+    {% endfor %}
+</section>
+
+<section class="grid two" style="margin-top:14px;">
+    <article class="card">
+        <div class="card-header">
+            <div>
+                <h3 class="card-title">Quick Actions</h3>
+                <p class="card-note">Common admin workflows with enforced audit trails.</p>
+            </div>
+        </div>
+        <div class="button-row">
+            <a class="btn" href="{% url 'hrms-users' %}">Create User</a>
+            <a class="btn secondary" href="{% url 'hrms-roles-permissions' %}">Assign Role</a>
+            <a class="btn secondary" href="{% url 'hrms-audit-logs' %}">View Audit Log</a>
+            <a class="btn ghost" href="{% url 'hrms-alerts' %}">Review Alerts</a>
+        </div>
+        <div class="notice" style="margin-top:12px;">
+            Any role or permission change generates an immutable audit event including actor, timestamp, and reason.
+        </div>
+    </article>
+
+    <article class="card">
+        <div class="card-header">
+            <div>
+                <h3 class="card-title">Session Health</h3>
+                <p class="card-note">Real-time access monitoring controls.</p>
+            </div>
+        </div>
+        <div class="grid">
+            <div class="pill">MFA compliance: 98.5%</div>
+            <div class="pill">Locked accounts (24h): 3</div>
+            <div class="pill">Privileged session idle timeout: 10 min</div>
+            <div class="pill">Unmanaged devices blocked: 12</div>
+        </div>
+    </article>
+</section>
+
+<section class="card" style="margin-top:14px;">
+    <div class="card-header">
+        <div>
+            <h3 class="card-title">Flagged Access Events</h3>
+            <p class="card-note">Alerts requiring admin/security review.</p>
+        </div>
+        <a href="{% url 'hrms-alerts' %}" class="btn secondary">Open Alerts</a>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Alert ID</th>
+                    <th>Severity</th>
+                    <th>Summary</th>
+                    <th>Assigned Owner</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for alert in recent_alerts %}
+                    <tr>
+                        <td>{{ alert.id }}</td>
+                        <td>
+                            <span class="badge {{ alert.severity|lower }}">{{ alert.severity }}</span>
+                        </td>
+                        <td>{{ alert.summary }}</td>
+                        <td>{{ alert.owner }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

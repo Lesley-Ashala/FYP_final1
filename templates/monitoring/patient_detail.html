@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2>Patient: {{ patient.full_name }}</h2>
+    <table>
+        <tbody>
+            <tr><th>Hospital ID</th><td>{{ patient.hospital_id }}</td></tr>
+            <tr><th>Date of Birth</th><td>{{ patient.date_of_birth }}</td></tr>
+            <tr><th>Diagnosis</th><td>{{ patient.diagnosis }}</td></tr>
+            <tr><th>Notes</th><td>{{ patient.notes|linebreaksbr|default:"-" }}</td></tr>
+            <tr><th>Attending Doctor</th><td>{{ patient.attending_doctor|default:"-" }}</td></tr>
+            <tr><th>Updated At</th><td>{{ patient.updated_at }}</td></tr>
+        </tbody>
+    </table>
+    <p style="margin-top:1rem;">
+        <a class="btn btn-secondary" href="{% url 'patient-list' %}">Back</a>
+        {% if user_role == "doctor" or user_role == "admin" %}
+            <a class="btn" href="{% url 'patient-update' patient.pk %}">Edit</a>
+        {% endif %}
+        {% if user_role == "admin" %}
+            <a class="btn btn-danger" href="{% url 'patient-delete' patient.pk %}">Delete</a>
+        {% endif %}
+    </p>
+</div>
+{% endblock %}

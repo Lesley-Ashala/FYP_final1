@@ -1,0 +1,123 @@
+{% extends "hrms/base_shell.html" %}
+
+{% block content %}
+<section class="split">
+    <article class="card">
+        <div class="card-header">
+            <div>
+                <h3 class="card-title">Alert Queue</h3>
+                <p class="card-note">Risk-scored anomalies from behavioral detection.</p>
+            </div>
+            <a class="btn secondary" href="{% url 'hrms-alerts' %}">Reset</a>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Alert ID</th>
+                        <th>Severity</th>
+                        <th>Status</th>
+                        <th>Risk Score</th>
+                        <th>Summary</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for alert in alerts %}
+                        <tr>
+                            <td><a href="{% url 'hrms-alerts' %}?alert={{ alert.pk }}">{{ alert.id }}</a></td>
+                            <td><span class="badge {{ alert.severity|lower }}">{{ alert.severity }}</span></td>
+                            <td><span class="badge {{ alert.status|lower }}">{{ alert.status }}</span></td>
+                            <td>{{ alert.risk_score }}</td>
+                            <td>{{ alert.summary }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="5">No alerts in selected range.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </article>
+
+    <article class="card">
+        {% if selected_alert %}
+            <div class="card-header">
+                <div>
+                    <h3 class="card-title">Alert Details - ALT-{{ selected_alert.id|stringformat:"05d" }}</h3>
+                    <p class="card-note">Explanation and investigation context.</p>
+                </div>
+                <span class="badge {{ selected_alert.alert_severity|default:'medium' }}">{{ selected_alert.alert_severity|default:"medium"|title }}</span>
+            </div>
+            <div class="notice warning">
+                Why flagged: {{ selected_alert.notes|default:"Behavioral anomaly pattern exceeded expected threshold." }}
+            </div>
+            <div class="timeline" style="margin-top:10px;">
+                <div class="timeline-item"><strong>{{ selected_alert.accessed_at|date:"H:i" }}</strong> Access anomaly event recorded.</div>
+                <div class="timeline-item"><strong>+2m</strong> Risk score computed at {{ selected_alert.risk_score|default:"-" }}.</div>
+                <div class="timeline-item"><strong>+5m</strong> Alert routed to Security queue.</div>
+                <div class="timeline-item"><strong>Current</strong> Status: {{ selected_alert.alert_status|title }}.</div>
+            </div>
+
+            <form method="post" action="{% url 'hrms-triage-alert' selected_alert.id %}">
+                {% csrf_token %}
+                <div class="field" style="margin-top:12px;">
+                    <label>Assign investigator</label>
+                    <select class="select" name="investigator_id">
+                        <option value="">Unassigned</option>
+                        {% for investigator in investigators %}
+                            <option value="{{ investigator.id }}" {% if selected_alert.assigned_investigator_id == investigator.id %}selected{% endif %}>
+                                {{ investigator.username|upper }} / {{ investigator.get_full_name|default:investigator.username }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label>Case reference</label>
+                    <input class="input" name="case_reference" value="{{ selected_alert.case_reference }}" placeholder="CASE-2026-014">
+                    <p class="helper">Use an existing case or provide a new case reference.</p>
+                </div>
+                <div class="field">
+                    <label>Triage notes</label>
+                    <textarea class="textarea" name="triage_notes" placeholder="Document triage decision and containment steps.">{{ selected_alert.triage_notes }}</textarea>
+                </div>
+                <div class="button-row">
+                    <button class="btn" type="submit">Mark as Triaged</button>
+                    <button class="btn danger" type="button" data-open-modal="close-alert-modal">Close Alert</button>
+                </div>
+            </form>
+        {% else %}
+            <div class="empty-state">
+                <h4>No alerts in selected range</h4>
+                <p>Try widening date filters or include medium/low severity events.</p>
+            </div>
+        {% endif %}
+    </article>
+</section>
+
+{% if selected_alert %}
+<div class="modal-backdrop" id="close-alert-modal">
+    <div class="modal">
+        <h3>Close alert ALT-{{ selected_alert.id|stringformat:"05d" }}</h3>
+        <p>Confirm closure and provide disposition summary for audit compliance.</p>
+        <form method="post" action="{% url 'hrms-close-alert' selected_alert.id %}">
+            {% csrf_token %}
+            <div class="field">
+                <label>Closure reason</label>
+                <select class="select" name="closure_reason">
+                    <option>False positive - verified legitimate workflow</option>
+                    <option>Policy violation handled</option>
+                    <option>Escalated to formal investigation</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>Final note</label>
+                <textarea class="textarea" name="final_note" placeholder="Describe verification outcome and sign-off authority."></textarea>
+            </div>
+            <div class="button-row">
+                <button class="btn" type="submit">Confirm Close</button>
+                <button class="btn secondary" type="button" data-close-modal>Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

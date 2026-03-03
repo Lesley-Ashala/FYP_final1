@@ -1,0 +1,89 @@
+{% extends "hrms/base_shell.html" %}
+
+{% block content %}
+<section class="card">
+    <div class="card-header">
+        <div>
+            <h3 class="card-title">Audit Log Filters</h3>
+            <p class="card-note">Filter by date range, user, department, patient reference, and action type.</p>
+        </div>
+        {% if can_export_audit %}
+            <a class="btn" href="{% url 'hrms-export-audit-csv' %}?date_from={{ filters.date_from }}&date_to={{ filters.date_to }}&user={{ filters.user }}&department={{ filters.department }}&patient_ref={{ filters.patient_ref }}&action_type={{ filters.action_type }}">Export CSV</a>
+        {% else %}
+            <button class="btn secondary disabled" disabled>Export CSV</button>
+        {% endif %}
+    </div>
+    <form method="get" class="filter-bar">
+        <div class="field">
+            <label>Date From</label>
+            <input type="date" class="input" name="date_from" value="{{ filters.date_from }}">
+        </div>
+        <div class="field">
+            <label>Date To</label>
+            <input type="date" class="input" name="date_to" value="{{ filters.date_to }}">
+        </div>
+        <div class="field">
+            <label>User</label>
+            <input class="input" name="user" value="{{ filters.user }}" placeholder="NUR-1142">
+        </div>
+        <div class="field">
+            <label>Department</label>
+            <input class="input" name="department" value="{{ filters.department }}" placeholder="Ward C">
+        </div>
+        <div class="field">
+            <label>PatientRef</label>
+            <input class="input" name="patient_ref" value="{{ filters.patient_ref }}" placeholder="PAT-000342">
+        </div>
+        <div class="field">
+            <label>Action Type</label>
+            <input class="input" name="action_type" value="{{ filters.action_type }}" placeholder="view / export">
+        </div>
+        <div class="field">
+            <button class="btn" type="submit">Apply Filters</button>
+        </div>
+    </form>
+
+    {% if not can_export_audit %}
+        <div class="notice error" style="margin-top:10px;">
+            You don't have permission to export audit logs.
+        </div>
+    {% endif %}
+</section>
+
+<section class="card" style="margin-top:14px;">
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>User</th>
+                    <th>Action</th>
+                    <th>PatientRef</th>
+                    <th>IP / Device</th>
+                    <th>Outcome</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in audit_rows %}
+                    <tr>
+                        <td>{{ row.time }}</td>
+                        <td>{{ row.user }}</td>
+                        <td>{{ row.action }}</td>
+                        <td>{{ row.patient }}</td>
+                        <td>{{ row.ip_device }}</td>
+                        <td>
+                            {% if row.outcome == "Success" %}
+                                <span class="badge success">{{ row.outcome }}</span>
+                            {% else %}
+                                <span class="badge denied">{{ row.outcome }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="6">No audit events in selected range.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,85 @@
+{% extends "hrms/base_shell.html" %}
+
+{% block content %}
+<form method="post" action="{% url 'hrms-save-system-settings' %}">
+    {% csrf_token %}
+    <section class="grid three">
+        <article class="card">
+            <h3 class="card-title">Password Policy</h3>
+            <div class="field" style="margin-top:10px;">
+                <label>Minimum length</label>
+                <input class="input" name="password_min_length" value="{{ settings.password_min_length }}">
+            </div>
+            <div class="field">
+                <label>Rotation interval</label>
+                <select class="select" name="password_rotation_days">
+                    <option value="90" {% if settings.password_rotation_days == "90" %}selected{% endif %}>Every 90 days</option>
+                    <option value="60" {% if settings.password_rotation_days == "60" %}selected{% endif %}>Every 60 days</option>
+                    <option value="30" {% if settings.password_rotation_days == "30" %}selected{% endif %}>Every 30 days</option>
+                </select>
+            </div>
+            <label class="checkbox">
+                <input type="checkbox" name="require_complex_password" {% if settings.require_complex_password == "true" %}checked{% endif %}>
+                Require uppercase, lowercase, number, and symbol
+            </label>
+        </article>
+
+        <article class="card">
+            <h3 class="card-title">Session & MFA Policy</h3>
+            <div class="field" style="margin-top:10px;">
+                <label>Session timeout (minutes)</label>
+                <input class="input" name="session_timeout_minutes" value="{{ settings.session_timeout_minutes }}">
+            </div>
+            <div class="field">
+                <label>MFA policy</label>
+                <select class="select" name="mfa_policy">
+                    <option value="required_privileged" {% if settings.mfa_policy == "required_privileged" %}selected{% endif %}>Force MFA on privileged roles</option>
+                    <option value="required_all" {% if settings.mfa_policy == "required_all" %}selected{% endif %}>Force MFA on all roles</option>
+                    <option value="optional" {% if settings.mfa_policy == "optional" %}selected{% endif %}>MFA optional</option>
+                </select>
+            </div>
+            <label class="checkbox">
+                <input type="checkbox" name="step_up_export_mfa" {% if settings.step_up_export_mfa == "true" %}checked{% endif %}>
+                Step-up MFA for export actions
+            </label>
+            <label class="checkbox">
+                <input type="checkbox" name="allow_trusted_device_bypass" {% if settings.allow_trusted_device_bypass == "true" %}checked{% endif %}>
+                Allow trusted device bypass (not recommended)
+            </label>
+        </article>
+
+        <article class="card">
+            <h3 class="card-title">Data Retention & Export</h3>
+            <div class="field" style="margin-top:10px;">
+                <label>Audit retention period</label>
+                <select class="select" name="audit_retention_years">
+                    <option value="7" {% if settings.audit_retention_years == "7" %}selected{% endif %}>7 years</option>
+                    <option value="5" {% if settings.audit_retention_years == "5" %}selected{% endif %}>5 years</option>
+                    <option value="3" {% if settings.audit_retention_years == "3" %}selected{% endif %}>3 years</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>Export format</label>
+                <select class="select" name="audit_export_format">
+                    <option value="csv_hash_manifest" {% if settings.audit_export_format == "csv_hash_manifest" %}selected{% endif %}>CSV + hash manifest</option>
+                    <option value="csv" {% if settings.audit_export_format == "csv" %}selected{% endif %}>CSV</option>
+                </select>
+            </div>
+            <label class="checkbox">
+                <input type="checkbox" name="require_export_reason" {% if settings.require_export_reason == "true" %}checked{% endif %}>
+                Require reason for audit export
+            </label>
+        </article>
+    </section>
+
+    <section class="card" style="margin-top:14px;">
+        <div class="notice warning">
+            Changes to security settings propagate within 60 seconds and are logged under system policy events.
+        </div>
+        <div class="button-row">
+            <button class="btn" type="submit">Save Settings</button>
+            <a class="btn secondary" href="{% url 'hrms-system-settings' %}">Cancel</a>
+        </div>
+    </section>
+</form>
+{% endblock %}

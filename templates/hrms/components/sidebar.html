@@ -1,0 +1,30 @@
+<aside class="sidebar">
+    <div class="brand">
+        <div class="brand-logo">HSR</div>
+        <div>
+            <p class="brand-title">{{ brand_name }}</p>
+            <p class="brand-subtitle">Hospital Secure Records</p>
+        </div>
+    </div>
+
+    <div class="nav-group">
+        <p class="nav-label">Navigation</p>
+        {% for item in nav_items %}
+            <a href="{% url item.url_name %}" class="nav-item {% if active_url_name == item.url_name %}active{% endif %}">
+                {% include "hrms/components/icon.html" with icon=item.icon %}
+                <span>{{ item.label }}</span>
+            </a>
+        {% endfor %}
+    </div>
+
+    <div class="nav-footnote">
+        <strong>Security Status</strong><br>
+        Last policy sync: 09:10 UTC<br>
+        Endpoint posture: compliant
+    </div>
+
+    <div class="nav-footnote">
+        <strong>RBAC Role</strong><br>
+        {{ demo_role_label }}
+    </div>
+</aside>

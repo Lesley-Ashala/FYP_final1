@@ -1,0 +1,144 @@
+{% extends "hrms/base_shell.html" %}
+
+{% block content %}
+<section class="card">
+    <div class="card-header">
+        <div>
+            <h3 class="card-title">User Directory</h3>
+            <p class="card-note">Create and manage staff accounts with least-privilege defaults.</p>
+        </div>
+        <div class="button-row">
+            <button class="btn" data-open-modal="create-user-modal">Create User</button>
+            <form method="post" action="{% url 'hrms-force-mfa' %}">
+                {% csrf_token %}
+                <button class="btn ghost" type="submit">Force MFA</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Staff ID</th>
+                    <th>Role</th>
+                    <th>Department</th>
+                    <th>Status</th>
+                    <th>Last Login</th>
+                    <th>MFA Enabled</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                    <tr>
+                        <td>{{ user.name }}</td>
+                        <td>{{ user.staff_id }}</td>
+                        <td>
+                            <form method="post" action="{% url 'hrms-user-assign-role' user.id %}" style="display:flex; gap:6px; align-items:center;">
+                                {% csrf_token %}
+                                <select class="select" name="role" style="min-width:145px;">
+                                    {% for role in roles_for_assignment %}
+                                        <option value="{{ role.key }}" {% if role.key == user.role_key %}selected{% endif %}>{{ role.label }}</option>
+                                    {% endfor %}
+                                </select>
+                                <button class="btn secondary" type="submit">Assign</button>
+                            </form>
+                        </td>
+                        <td>{{ user.department }}</td>
+                        <td>
+                            {% if user.status == "Active" %}
+                                <span class="badge success">{{ user.status }}</span>
+                            {% else %}
+                                <span class="badge denied">{{ user.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ user.last_login }}</td>
+                        <td>{{ user.mfa }}</td>
+                        <td>
+                            <div class="button-row">
+                                <form method="post" action="{% url 'hrms-user-reset-password' user.id %}">
+                                    {% csrf_token %}
+                                    <button class="btn secondary" type="submit">Reset</button>
+                                </form>
+                                {% if user.status == "Active" %}
+                                    <button class="btn danger" data-open-modal="disable-user-modal-{{ user.id }}">Disable</button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<div class="modal-backdrop" id="create-user-modal">
+    <div class="modal">
+        <h3>Create user</h3>
+        <p>New account will receive temporary credentials and must set MFA at first login.</p>
+        <form method="post" action="{% url 'hrms-user-create' %}">
+            {% csrf_token %}
+            <div class="grid two">
+                <div class="field">
+                    <label>Full name</label>
+                    <input class="input" name="full_name" placeholder="e.g., Priya D'Souza" required>
+                </div>
+                <div class="field">
+                    <label>Staff ID</label>
+                    <input class="input" name="staff_id" placeholder="e.g., NUR-1198" required>
+                    <p class="helper">Must be unique in the user directory.</p>
+                </div>
+                <div class="field">
+                    <label>Role</label>
+                    <select class="select" name="role">
+                        {% for role in roles_for_assignment %}
+                            <option value="{{ role.key }}">{{ role.label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label>Department</label>
+                    <input class="input" name="department" placeholder="e.g., Ward C">
+                </div>
+                <div class="field">
+                    <label>Email</label>
+                    <input class="input" name="email" placeholder="name@hospital.local">
+                </div>
+                <div class="field">
+                    <label>Status</label>
+                    <select class="select" name="status">
+                        <option value="active">Active</option>
+                        <option value="suspended">Suspended</option>
+                    </select>
+                </div>
+            </div>
+            <div class="button-row" style="margin-top:10px;">
+                <button class="btn" type="submit">Create User</button>
+                <button class="btn secondary" type="button" data-close-modal>Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% for user in users %}
+    <div class="modal-backdrop" id="disable-user-modal-{{ user.id }}">
+        <div class="modal">
+            <h3>Disable user account</h3>
+            <p>Confirm disabling {{ user.staff_id }}. Active sessions will be terminated immediately.</p>
+            <form method="post" action="{% url 'hrms-user-disable' user.id %}">
+                {% csrf_token %}
+                <div class="field">
+                    <label>Reason</label>
+                    <textarea class="textarea" name="reason" placeholder="Provide reason for disablement to include in audit log."></textarea>
+                </div>
+                <div class="button-row">
+                    <button class="btn danger" type="submit">Confirm Disable</button>
+                    <button class="btn secondary" type="button" data-close-modal>Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+{% endfor %}
+{% endblock %}

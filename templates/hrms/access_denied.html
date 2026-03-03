@@ -1,0 +1,56 @@
+{% extends "hrms/base_shell.html" %}
+
+{% block content %}
+<div class="grid two">
+    <section class="card">
+        <div class="card-header">
+            <div>
+                <h3 class="card-title">You do not have permission to access this page</h3>
+                <p class="card-note">RBAC route guard enforced by role-to-permission policy.</p>
+            </div>
+            <span class="badge denied">Access Denied</span>
+        </div>
+        <div class="notice error">
+            Your current role is <strong>{{ demo_role_label }}</strong>. Required roles:
+            <strong>{{ required_roles|join:", " }}</strong>.
+        </div>
+        <p class="card-note">
+            If this appears incorrect, submit a role-change request to Records Administration with a business justification.
+        </p>
+        <div class="button-row" style="margin-top:12px;">
+            <a href="{% url 'hrms-root' %}" class="btn secondary">Return to landing page</a>
+            <a href="{% url 'hrms-user-flow' %}" class="btn ghost">Open user flow diagram</a>
+        </div>
+    </section>
+    <section class="card">
+        <h3 class="card-title">Security Event Preview</h3>
+        <p class="card-note">Denied access events are written to audit logs.</p>
+        <div class="table-wrap" style="margin-top:12px;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>User</th>
+                        <th>Action</th>
+                        <th>Outcome</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>2026-02-20 09:40:12</td>
+                        <td>{{ demo_user }}</td>
+                        <td>Open restricted page</td>
+                        <td><span class="badge denied">Denied</span></td>
+                    </tr>
+                    <tr>
+                        <td>2026-02-20 09:41:01</td>
+                        <td>{{ demo_user }}</td>
+                        <td>Export audit report</td>
+                        <td><span class="badge denied">Denied</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+{% endblock %}

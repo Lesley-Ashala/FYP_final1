@@ -1,0 +1,73 @@
+{% extends "hrms/base_shell.html" %}
+
+{% block content %}
+<form method="post" action="{% url 'hrms-save-permissions' %}">
+    {% csrf_token %}
+    <section class="grid two">
+        <article class="card">
+            <div class="card-header">
+                <div>
+                    <h3 class="card-title">Role Catalog</h3>
+                    <p class="card-note">Defined access profiles in Hospital Secure Records.</p>
+                </div>
+            </div>
+            <div class="grid">
+                <div class="pill">Admin: user management, system policy, audit/alerts oversight</div>
+                <div class="pill">Nurse: assigned record access + notes + vitals</div>
+                <div class="pill">Doctor: assigned records + clinical updates</div>
+            </div>
+        </article>
+
+        <article class="card">
+            <h3 class="card-title">Change Control</h3>
+            <p class="card-note">Saving permission changes requires reason and creates an immutable audit event.</p>
+            <div class="field" style="margin-top:10px;">
+                <label>Reason for change (required)</label>
+                <textarea class="textarea" name="change_reason" required placeholder="Example: Grant Auditor export rights for quarterly compliance submission."></textarea>
+                <p class="helper">This reason is included in audit records.</p>
+            </div>
+            <div class="button-row">
+                <button class="btn" type="submit">Save Changes</button>
+                <a class="btn secondary" href="{% url 'hrms-roles-permissions' %}">Discard</a>
+            </div>
+        </article>
+    </section>
+
+    <section class="card" style="margin-top:14px;">
+        <div class="card-header">
+            <div>
+                <h3 class="card-title">Permissions Matrix</h3>
+                <p class="card-note">Checkbox grid representation of current role-policy assignments.</p>
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Role</th>
+                        {% for header in permission_headers %}
+                            <th>{{ header }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for role_name, role_key, permissions in permission_rows %}
+                        <tr>
+                            <td>{{ role_name }}</td>
+                            {% for perm_key, is_enabled in permissions %}
+                                <td>
+                                    <input
+                                        type="checkbox"
+                                        name="perm__{{ role_key }}__{{ perm_key }}"
+                                        {% if is_enabled %}checked{% endif %}
+                                    >
+                                </td>
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</form>
+{% endblock %}

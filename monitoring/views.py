@@ -1,0 +1,210 @@
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.db.models import QuerySet
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
+from django.shortcuts import redirect
+from django.urls import reverse_lazy
+from django.views.decorators.http import require_POST
+from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
+
+from monitoring.forms import PatientRecordForm
+from monitoring.models import AccessLog, EvaluationResult, PatientRecord, RoleChoices
+from monitoring.permissions import RoleRequiredMixin, get_user_role, user_has_any_role
+from monitoring.services import evaluate_detector, log_record_access, run_isolation_forest_detection
+
+
+class PatientListView(RoleRequiredMixin, ListView):
+    model = PatientRecord
+    template_name = "monitoring/patient_list.html"
+    context_object_name = "patients"
+    paginate_by = 20
+    allowed_roles = (RoleChoices.DOCTOR, RoleChoices.NURSE, RoleChoices.ADMIN)
+
+    def get_queryset(self) -> QuerySet[PatientRecord]:
+        return (
+            PatientRecord.objects.select_related("attending_doctor")
+            .all()
+            .order_by("full_name")
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["role"] = get_user_role(self.request.user)
+        context["total_access_logs"] = AccessLog.objects.count()
+        context["flagged_logs"] = AccessLog.objects.filter(is_flagged=True).count()
+        return context
+
+
+class PatientDetailView(RoleRequiredMixin, DetailView):
+    model = PatientRecord
+    template_name = "monitoring/patient_detail.html"
+    context_object_name = "patient"
+    allowed_roles = (RoleChoices.DOCTOR, RoleChoices.NURSE, RoleChoices.ADMIN)
+
+    def get_object(self, queryset=None):
+        patient = super().get_object(queryset)
+        log_record_access(
+            user=self.request.user,
+            patient_record=patient,
+            action=AccessLog.AccessAction.VIEW,
+            request=self.request,
+        )
+        return patient
+
+
+class PatientCreateView(RoleRequiredMixin, CreateView):
+    model = PatientRecord
+    form_class = PatientRecordForm
+    template_name = "monitoring/patient_form.html"
+    success_url = reverse_lazy("patient-list")
+    allowed_roles = (RoleChoices.DOCTOR, RoleChoices.ADMIN)
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        log_record_access(
+            user=self.request.user,
+            patient_record=self.object,
+            action=AccessLog.AccessAction.CREATE,
+            request=self.request,
+        )
+        messages.success(self.request, "Patient record created.")
+        return response
+
+
+class PatientUpdateView(RoleRequiredMixin, UpdateView):
+    model = PatientRecord
+    form_class = PatientRecordForm
+    template_name = "monitoring/patient_form.html"
+    allowed_roles = (RoleChoices.DOCTOR, RoleChoices.ADMIN)
+
+    def get_success_url(self):
+        return reverse_lazy("patient-detail", kwargs={"pk": self.object.pk})
+
+    def get_object(self, queryset=None):
+        patient = super().get_object(queryset)
+        if self.request.method == "GET":
+            log_record_access(
+                user=self.request.user,
+                patient_record=patient,
+                action=AccessLog.AccessAction.VIEW,
+                request=self.request,
+                notes="Opened patient update form",
+            )
+        return patient
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        log_record_access(
+            user=self.request.user,
+            patient_record=self.object,
+            action=AccessLog.AccessAction.UPDATE,
+            request=self.request,
+        )
+        messages.success(self.request, "Patient record updated.")
+        return response
+
+
+class PatientDeleteView(RoleRequiredMixin, DeleteView):
+    model = PatientRecord
+    template_name = "monitoring/patient_confirm_delete.html"
+    success_url = reverse_lazy("patient-list")
+    allowed_roles = (RoleChoices.ADMIN,)
+
+    def get_object(self, queryset=None):
+        patient = super().get_object(queryset)
+        if self.request.method == "GET":
+            log_record_access(
+                user=self.request.user,
+                patient_record=patient,
+                action=AccessLog.AccessAction.VIEW,
+                request=self.request,
+                notes="Opened patient delete confirmation",
+            )
+        return patient
+
+    def post(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
+        patient = self.get_object()
+        log_record_access(
+            user=request.user,
+            patient_record=patient,
+            action=AccessLog.AccessAction.DELETE,
+            request=request,
+        )
+        messages.warning(request, "Patient record deleted.")
+        return super().post(request, *args, **kwargs)
+
+
+class AccessLogListView(RoleRequiredMixin, ListView):
+    model = AccessLog
+    template_name = "monitoring/accesslog_list.html"
+    context_object_name = "logs"
+    paginate_by = 50
+    allowed_roles = (RoleChoices.ADMIN,)
+
+    def get_queryset(self):
+        return AccessLog.objects.select_related("user", "patient_record").all()
+
+
+class AnomalyListView(RoleRequiredMixin, ListView):
+    model = AccessLog
+    template_name = "monitoring/anomaly_list.html"
+    context_object_name = "logs"
+    paginate_by = 50
+    allowed_roles = (RoleChoices.ADMIN,)
+
+    def get_queryset(self):
+        return (
+            AccessLog.objects.select_related("user", "patient_record")
+            .filter(is_flagged=True)
+            .order_by("-anomaly_score", "-accessed_at")
+        )
+
+
+class EvaluationListView(RoleRequiredMixin, ListView):
+    model = EvaluationResult
+    template_name = "monitoring/evaluation_list.html"
+    context_object_name = "evaluations"
+    paginate_by = 25
+    allowed_roles = (RoleChoices.ADMIN,)
+
+
+def _admin_only(user) -> bool:
+    return user_has_any_role(user, (RoleChoices.ADMIN,))
+
+
+@login_required
+@user_passes_test(_admin_only)
+@require_POST
+def run_detection_view(request: HttpRequest) -> HttpResponseRedirect:
+    summary = run_isolation_forest_detection()
+    messages.success(
+        request,
+        (
+            f"Detection complete: {summary.anomalies_flagged} anomalies flagged from "
+            f"{summary.total_events} events in {summary.execution_time_ms:.2f} ms."
+        ),
+    )
+    return redirect("anomaly-list")
+
+
+@login_required
+@user_passes_test(_admin_only)
+@require_POST
+def run_evaluation_view(request: HttpRequest) -> HttpResponseRedirect:
+    logs = AccessLog.objects.filter(is_simulated=True).order_by("accessed_at")
+    if not logs.exists():
+        messages.error(
+            request,
+            "No simulated data available. Run `python manage.py generate_synthetic_logs` first.",
+        )
+        return redirect("evaluation-list")
+
+    result = evaluate_detector(logs)
+    messages.success(
+        request,
+        (
+            f"Evaluation complete. Precision={result.precision:.3f}, "
+            f"Recall={result.recall:.3f}, FPR={result.false_positive_rate:.3f}."
+        ),
+    )
+    return redirect("evaluation-list")

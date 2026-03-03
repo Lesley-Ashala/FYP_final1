@@ -1,0 +1,33 @@
+{% extends "hrms/auth_layout.html" %}
+
+{% block content %}
+<h2 class="auth-title">Sign in to Secure Records</h2>
+<p class="auth-subtitle">Use your staff credentials to access role-based hospital records.</p>
+
+{% if error %}
+    <div class="notice error">{{ error }}</div>
+{% endif %}
+
+<form method="post">
+    {% csrf_token %}
+    <div class="field">
+        <label for="staff_id">Staff ID / Email</label>
+        <input class="input" id="staff_id" name="staff_id" placeholder="e.g., NUR-1142 or name@hospital.local">
+    </div>
+
+    <div class="field">
+        <label for="password">Password</label>
+        <input class="input" id="password" name="password" type="password" placeholder="Enter password">
+    </div>
+
+    <div class="row">
+        <label class="checkbox">
+            <input type="checkbox" name="remember_me">
+            Remember me
+        </label>
+        <a class="link" href="#">Forgot password?</a>
+    </div>
+
+    <button class="btn" type="submit">Sign in</button>
+</form>
+{% endblock %}

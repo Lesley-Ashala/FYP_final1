@@ -1,0 +1,121 @@
+{% extends "hrms/base_shell.html" %}
+
+{% block content %}
+<section class="card">
+    <div class="card-header">
+        <div>
+            <h3 class="card-title">Search Patients</h3>
+            <p class="card-note">Search by patient number, name, ward, or bed number.</p>
+        </div>
+    </div>
+    <form method="get" class="filter-bar">
+        <div class="field">
+            <label>Patient number</label>
+            <input class="input" name="patient_number" placeholder="PAT-000342" value="{{ filters.patient_number }}">
+        </div>
+        <div class="field">
+            <label>Patient name</label>
+            <input class="input" name="patient_name" placeholder="Avery Cole" value="{{ filters.patient_name }}">
+        </div>
+        <div class="field">
+            <label>Ward</label>
+            <select class="select" name="ward">
+                <option {% if filters.ward == "Any" %}selected{% endif %}>Any</option>
+                <option {% if filters.ward == "Ward C" %}selected{% endif %}>Ward C</option>
+                <option {% if filters.ward == "ICU-2" %}selected{% endif %}>ICU-2</option>
+                <option {% if filters.ward == "Ward A" %}selected{% endif %}>Ward A</option>
+                <option {% if filters.ward == "Ward B" %}selected{% endif %}>Ward B</option>
+            </select>
+        </div>
+        <div class="field">
+            <label>Bed number</label>
+            <input class="input" name="bed" placeholder="12" value="{{ filters.bed }}">
+        </div>
+        <div class="field">
+            <label>Status</label>
+            <select class="select" name="status">
+                <option {% if filters.status == "Any" %}selected{% endif %}>Any</option>
+                <option {% if filters.status == "Stable" %}selected{% endif %}>Stable</option>
+                <option {% if filters.status == "Observation" %}selected{% endif %}>Observation</option>
+                <option {% if filters.status == "Needs review" %}selected{% endif %}>Needs review</option>
+            </select>
+        </div>
+        <div class="field">
+            <button class="btn" type="submit">Search</button>
+        </div>
+    </form>
+</section>
+
+<section class="grid three" style="margin-top:14px;">
+    {% for patient in patients %}
+    <article class="card">
+        <div class="card-header">
+            <div>
+                <h3 class="card-title">{{ patient.name }}</h3>
+                <p class="card-note">{{ patient.patient_ref }}</p>
+            </div>
+            {% if patient.status == "Stable" %}
+                <span class="badge success">{{ patient.status }}</span>
+            {% elif patient.status == "Observation" %}
+                <span class="badge medium">{{ patient.status }}</span>
+            {% else %}
+                <span class="badge high">{{ patient.status }}</span>
+            {% endif %}
+        </div>
+        <p class="card-note">Ward/Bed: {{ patient.ward }} / {{ patient.bed }}</p>
+        <p class="card-note">Age: {{ patient.age }} | Gender: {{ patient.gender }}</p>
+        <p class="card-note">Assigned clinician: {{ patient.clinician }}</p>
+        <div class="button-row" style="margin-top:11px;">
+            <button class="btn" data-open-modal="access-reason-modal-{{ patient.pk }}">Open Record</button>
+            <button class="btn secondary" data-toast="Task queued for {{ patient.patient_ref }}" data-tone="success">Queue Task</button>
+        </div>
+    </article>
+    {% empty %}
+    <article class="card" style="grid-column:1 / -1;">
+        <div class="empty-state">
+            <h4>No matching patients</h4>
+            <p>Refine your filters or search by patient number.</p>
+        </div>
+    </article>
+    {% endfor %}
+</section>
+
+<section class="card" style="margin-top:14px;">
+    <h3 class="card-title">Loading State Example</h3>
+    <div class="loading-state" style="margin-top:10px;">
+        <div class="loading-dot"></div>
+        <h4>Searching patient index...</h4>
+        <p>Fetching latest ward assignments and access policy context.</p>
+    </div>
+</section>
+
+{% for patient in patients %}
+<div class="modal-backdrop" id="access-reason-modal-{{ patient.pk }}">
+    <div class="modal">
+        <h3>Reason for access required</h3>
+        <p>Select a valid reason before opening the patient chart.</p>
+        <form method="post" action="{% url 'hrms-open-patient-record' patient.pk %}">
+            {% csrf_token %}
+            <div class="field">
+                <label>Access reason</label>
+                <select class="select" name="access_reason" required>
+                    <option value="">Select reason</option>
+                    <option value="Direct patient care">Direct patient care</option>
+                    <option value="Shift handover">Shift handover</option>
+                    <option value="Clinician request">Clinician request</option>
+                    <option value="Medication verification">Medication verification</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>Additional note (optional)</label>
+                <textarea class="textarea" name="access_note" placeholder="Optional context for audit reviewers."></textarea>
+            </div>
+            <div class="button-row">
+                <button class="btn" type="submit">Continue to Record</button>
+                <button class="btn secondary" type="button" data-close-modal>Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}

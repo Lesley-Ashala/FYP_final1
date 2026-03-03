@@ -1,0 +1,39 @@
+{% extends "hrms/auth_layout.html" %}
+
+{% block content %}
+<h2 class="auth-title">Multi-Factor Verification</h2>
+<p class="auth-subtitle">
+    Enter the one-time code sent to your registered phone/email before continuing.
+</p>
+
+{% if otp_error %}
+    <div class="notice error">{{ otp_error }}</div>
+{% endif %}
+
+{% if sent_message %}
+    <div class="notice">{{ sent_message }}</div>
+{% endif %}
+
+<form method="post">
+    {% csrf_token %}
+    <div class="field">
+        <label for="otp_code">OTP code</label>
+        <input id="otp_code" class="input" name="otp_code" maxlength="6" placeholder="6-digit code">
+        <p class="helper">Demo code: <strong>482913</strong></p>
+    </div>
+    <button class="btn" type="submit">Verify & Continue</button>
+</form>
+
+<div class="row">
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="resend">
+        <button class="btn" type="submit" style="background:#0f766e; width:auto; padding:8px 12px;">Send code to phone/email</button>
+    </form>
+    <a class="link" href="{% url 'hrms-login' %}">Back to sign in</a>
+</div>
+
+<div class="notice warning">
+    If you do not receive a code within 30 seconds, verify network connectivity and contact IT support.
+</div>
+{% endblock %}

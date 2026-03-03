@@ -1,0 +1,126 @@
+{% extends "hrms/base_shell.html" %}
+
+{% block content %}
+<style>
+    .flow-board {
+        border: 1px solid #d7e0ea;
+        border-radius: 14px;
+        background: #fff;
+        padding: 14px;
+    }
+    .flow-lane {
+        margin-bottom: 14px;
+        padding-bottom: 14px;
+        border-bottom: 1px dashed #d7e0ea;
+    }
+    .flow-lane:last-child {
+        margin-bottom: 0;
+        padding-bottom: 0;
+        border-bottom: 0;
+    }
+    .flow-title {
+        margin: 0 0 9px;
+        font-size: 0.9rem;
+        color: #0f172a;
+    }
+    .flow-row {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(120px, 1fr));
+        gap: 8px;
+        align-items: center;
+    }
+    .flow-node {
+        border: 1px solid #cdd8e4;
+        background: #f8fafc;
+        border-radius: 10px;
+        padding: 9px;
+        font-size: 0.77rem;
+        text-align: center;
+        font-weight: 600;
+        color: #1e293b;
+    }
+    .flow-node.primary {
+        border-color: #bde3ea;
+        background: #e6f4f6;
+        color: #0a6576;
+    }
+    .flow-arrow {
+        text-align: center;
+        font-weight: 700;
+        color: #64748b;
+    }
+    @media (max-width: 1100px) {
+        .flow-row {
+            grid-template-columns: 1fr;
+        }
+        .flow-arrow {
+            transform: rotate(90deg);
+            margin: -6px 0;
+        }
+    }
+</style>
+
+<section class="flow-board">
+    <div class="flow-lane">
+        <h3 class="flow-title">Authentication + RBAC Route Guard</h3>
+        <div class="flow-row">
+            <div class="flow-node primary">Login</div>
+            <div class="flow-arrow">-&gt;</div>
+            <div class="flow-node">RBAC Route Guard</div>
+            <div class="flow-arrow">-&gt;</div>
+            <div class="flow-node primary">Role Dashboard</div>
+        </div>
+    </div>
+
+    <div class="flow-lane">
+        <h3 class="flow-title">Nurse Flow</h3>
+        <div class="flow-row">
+            <div class="flow-node primary">Nurse Dashboard</div>
+            <div class="flow-arrow">-&gt;</div>
+            <div class="flow-node">Patient Search</div>
+            <div class="flow-arrow">-&gt;</div>
+            <div class="flow-node">Select Patient</div>
+            <div class="flow-arrow">-&gt;</div>
+            <div class="flow-node">Reason for Access Prompt</div>
+            <div class="flow-arrow">-&gt;</div>
+            <div class="flow-node">Record View</div>
+            <div class="flow-arrow">-&gt;</div>
+            <div class="flow-node">Add Vitals/Notes</div>
+            <div class="flow-arrow">-&gt;</div>
+            <div class="flow-node primary">Save + Audit Entry</div>
+        </div>
+    </div>
+
+    <div class="flow-lane">
+        <h3 class="flow-title">Admin Flow</h3>
+        <div class="flow-row">
+            <div class="flow-node primary">Admin Dashboard</div>
+            <div class="flow-arrow">-&gt;</div>
+            <div class="flow-node">User Management</div>
+            <div class="flow-arrow">-&gt;</div>
+            <div class="flow-node">Create/Disable User</div>
+            <div class="flow-arrow">-&gt;</div>
+            <div class="flow-node">Role Assignment</div>
+            <div class="flow-arrow">-&gt;</div>
+            <div class="flow-node">Permission Update + Reason</div>
+            <div class="flow-arrow">-&gt;</div>
+            <div class="flow-node primary">Audit Log Entry</div>
+        </div>
+    </div>
+
+    <div class="flow-lane">
+        <h3 class="flow-title">Admin Alert Investigation Flow</h3>
+        <div class="flow-row">
+            <div class="flow-node primary">Alerts</div>
+            <div class="flow-arrow">-&gt;</div>
+            <div class="flow-node">Triage</div>
+            <div class="flow-arrow">-&gt;</div>
+            <div class="flow-node">Investigation Case</div>
+            <div class="flow-arrow">-&gt;</div>
+            <div class="flow-node">Close Alert</div>
+            <div class="flow-arrow">-&gt;</div>
+            <div class="flow-node primary">Export Report (if permitted)</div>
+        </div>
+    </div>
+</section>
+{% endblock %}

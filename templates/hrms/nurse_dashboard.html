@@ -1,0 +1,96 @@
+{% extends "hrms/base_shell.html" %}
+
+{% block content %}
+<section class="grid kpi">
+    {% for kpi in kpis %}
+        <article class="card">
+            <p class="metric-label">{{ kpi.label }}</p>
+            <p class="metric-value">{{ kpi.value }}</p>
+            <p class="metric-trend">{{ kpi.trend }}</p>
+        </article>
+    {% endfor %}
+</section>
+
+<section class="grid two" style="margin-top:14px;">
+    <article class="card">
+        <div class="card-header">
+            <div>
+                <h3 class="card-title">Quick Actions</h3>
+                <p class="card-note">Faster access to nurse workflows.</p>
+            </div>
+        </div>
+        <div class="button-row">
+            <a class="btn" href="{% url 'hrms-patient-search' %}">Search Patient</a>
+            <a class="btn secondary" href="{% url 'hrms-patient-record-default' %}">Record Vitals</a>
+            <a class="btn secondary" href="{% url 'hrms-patient-record-default' %}">Add Nursing Note</a>
+        </div>
+        <div class="notice" style="margin-top:12px;">
+            Every chart access prompts for reason and is logged automatically for compliance.
+        </div>
+    </article>
+
+    <article class="card">
+        <div class="card-header">
+            <div>
+                <h3 class="card-title">Notifications</h3>
+                <p class="card-note">Task and clinical alerts for this shift.</p>
+            </div>
+        </div>
+        <div class="grid">
+            {% for item in notifications %}
+                <div class="pill">{{ item.message }}</div>
+            {% endfor %}
+        </div>
+    </article>
+</section>
+
+<section class="grid two" style="margin-top:14px;">
+    <article class="card">
+        <h3 class="card-title">Assigned Patients</h3>
+        <p class="card-note">Current assignment snapshot.</p>
+        <div class="table-wrap" style="margin-top:10px;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>PatientRef</th>
+                        <th>Ward/Bed</th>
+                        <th>Status</th>
+                        <th>Next Task</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for patient in assigned_patients %}
+                        <tr>
+                            <td>{{ patient.patient_ref }}</td>
+                            <td>{{ patient.ward }} / {{ patient.bed }}</td>
+                            <td>
+                                {% if patient.status == "Stable" %}
+                                    <span class="badge success">{{ patient.status }}</span>
+                                {% elif patient.status == "Observation" %}
+                                    <span class="badge medium">{{ patient.status }}</span>
+                                {% else %}
+                                    <span class="badge high">{{ patient.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a class="btn secondary" href="{% url 'hrms-patient-record' patient.pk %}">Open Chart</a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="4">No assigned patients found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </article>
+
+    <article class="card">
+        <h3 class="card-title">Empty State Example</h3>
+        <p class="card-note">Shown when no assignments exist in selected range.</p>
+        <div class="empty-state" style="margin-top:10px;">
+            <h4>No patients assigned yet</h4>
+            <p>Check with charge nurse or refresh assignment board in a few minutes.</p>
+        </div>
+    </article>
+</section>
+{% endblock %}

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2>Patient Records</h2>
+    <p class="meta">Total logs: {{ total_access_logs }} | Flagged anomalies: {{ flagged_logs }}</p>
+    {% if user_role == "doctor" or user_role == "admin" %}
+        <p><a class="btn" href="{% url 'patient-create' %}">Create Patient Record</a></p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>Hospital ID</th>
+                <th>Name</th>
+                <th>DOB</th>
+                <th>Diagnosis</th>
+                <th>Attending Doctor</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for patient in patients %}
+                <tr>
+                    <td>{{ patient.hospital_id }}</td>
+                    <td>{{ patient.full_name }}</td>
+                    <td>{{ patient.date_of_birth }}</td>
+                    <td>{{ patient.diagnosis|truncatechars:60 }}</td>
+                    <td>{{ patient.attending_doctor|default:"-" }}</td>
+                    <td class="actions">
+                        <a class="btn btn-secondary" href="{% url 'patient-detail' patient.pk %}">View</a>
+                        {% if user_role == "doctor" or user_role == "admin" %}
+                            <a class="btn" href="{% url 'patient-update' patient.pk %}">Edit</a>
+                        {% endif %}
+                        {% if user_role == "admin" %}
+                            <a class="btn btn-danger" href="{% url 'patient-delete' patient.pk %}">Delete</a>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="6">No patient records yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if is_paginated %}
+<div class="card">
+    {% if page_obj.has_previous %}
+        <a class="btn btn-secondary" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+    {% endif %}
+    <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+        <a class="btn btn-secondary" href="?page={{ page_obj.next_page_number }}">Next</a>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}
