@@ -9,10 +9,6 @@
         </div>
         <div class="button-row">
             <button class="btn" data-open-modal="create-user-modal">Create User</button>
-            <form method="post" action="{% url 'hrms-force-mfa' %}">
-                {% csrf_token %}
-                <button class="btn ghost" type="submit">Force MFA</button>
-            </form>
         </div>
     </div>
 
@@ -26,7 +22,6 @@
                     <th>Department</th>
                     <th>Status</th>
                     <th>Last Login</th>
-                    <th>MFA Enabled</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -55,7 +50,6 @@
                             {% endif %}
                         </td>
                         <td>{{ user.last_login }}</td>
-                        <td>{{ user.mfa }}</td>
                         <td>
                             <div class="button-row">
                                 <form method="post" action="{% url 'hrms-user-reset-password' user.id %}">
@@ -77,7 +71,7 @@
 <div class="modal-backdrop" id="create-user-modal">
     <div class="modal">
         <h3>Create user</h3>
-        <p>New account will receive temporary credentials and must set MFA at first login.</p>
+        <p>New account will receive temporary credentials and role-based access permissions.</p>
         <form method="post" action="{% url 'hrms-user-create' %}">
             {% csrf_token %}
             <div class="grid two">

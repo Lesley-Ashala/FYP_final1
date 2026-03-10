@@ -17,7 +17,7 @@ from monitoring.models import (
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ("user", "role", "department", "mfa_enabled", "force_password_reset")
+    list_display = ("user", "role", "department", "force_password_reset")
     list_filter = ("role", "department")
     search_fields = ("user__username", "department")
 
@@ -38,6 +38,8 @@ class AccessLogAdmin(admin.ModelAdmin):
         "patient_record",
         "action",
         "is_flagged",
+        "anomaly_score",
+        "risk_score",
         "alert_status",
         "alert_severity",
         "is_true_anomaly",

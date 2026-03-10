@@ -3,14 +3,14 @@ from __future__ import annotations
 import csv
 import json
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
 from io import StringIO
 
 from django.contrib import messages
 from django.contrib.auth import authenticate, get_user_model, login as auth_login, logout as auth_logout
 from django.contrib.sessions.models import Session
-from django.db.models import Q
+from django.db.models import Avg, Count, Max, Q
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -20,6 +20,8 @@ from django.views.decorators.http import require_http_methods, require_POST
 from monitoring.models import (
     AccessLog,
     AuditEvent,
+    DetectionRun,
+    EvaluationResult,
     InvestigationCase,
     InvestigationCaseNote,
     NursingNote,
@@ -29,8 +31,13 @@ from monitoring.models import (
     SystemSetting,
     UserProfile,
 )
-from monitoring.permissions import get_user_role
-from monitoring.services import log_record_access
+from monitoring.permissions import DEFAULT_PERMISSION_MATRIX, get_user_role, has_permission
+from monitoring.services import (
+    FEATURE_COLUMNS,
+    evaluate_detector,
+    log_record_access,
+    run_isolation_forest_detection,
+)
 
 
 User = get_user_model()
@@ -128,43 +135,6 @@ NAV_ITEMS = [
     },
 ]
 
-DEFAULT_PERMISSION_MATRIX = {
-    "admin": {
-        "view_patient": True,
-        "edit_patient": True,
-        "add_vitals": True,
-        "add_nursing_notes": True,
-        "manage_users": True,
-        "view_audit_log": True,
-        "export_audit_log": True,
-        "triage_alerts": True,
-        "close_alerts": True,
-    },
-    "doctor": {
-        "view_patient": True,
-        "edit_patient": True,
-        "add_vitals": True,
-        "add_nursing_notes": True,
-        "manage_users": False,
-        "view_audit_log": False,
-        "export_audit_log": False,
-        "triage_alerts": False,
-        "close_alerts": False,
-    },
-    "nurse": {
-        "view_patient": True,
-        "edit_patient": False,
-        "add_vitals": True,
-        "add_nursing_notes": True,
-        "manage_users": False,
-        "view_audit_log": False,
-        "export_audit_log": False,
-        "triage_alerts": False,
-        "close_alerts": False,
-    },
-}
-
-
 def _get_role(request: HttpRequest) -> str:
     role = request.session.get("hrms_demo_role", "admin")
     return role if role in ROLE_CONFIG else "admin"
@@ -187,11 +157,6 @@ def _profile_role_to_demo(profile_role: str) -> str:
         RoleChoices.ADMIN: "admin",
         RoleChoices.DOCTOR: "doctor",
         RoleChoices.NURSE: "nurse",
-        "super_admin": "admin",
-        "records_admin": "admin",
-        "auditor": "admin",
-        "security_officer": "admin",
-        "doctor_clinician": "doctor",
     }
     return mapping.get(profile_role, "nurse")
 
@@ -313,15 +278,14 @@ def _ensure_seed_data() -> None:
             changed_fields.append("is_superuser")
         if changed_fields:
             user.save(update_fields=changed_fields)
-        if created or not user.check_password("Welcome@123"):
+        if created:
             user.set_password("Welcome@123")
             user.save(update_fields=["password"])
 
         profile, _ = UserProfile.objects.get_or_create(user=user)
         profile.role = _demo_role_to_profile(demo_role)
         profile.department = department
-        profile.mfa_enabled = True
-        profile.save(update_fields=["role", "department", "mfa_enabled"])
+        profile.save(update_fields=["role", "department"])
 
     clinician = User.objects.filter(username=_staff_id_to_username("DOC-0458")).first()
     patient_seed = [
@@ -401,7 +365,6 @@ def _ensure_seed_data() -> None:
         "password_min_length": "12",
         "password_rotation_days": "90",
         "session_timeout_minutes": "10",
-        "mfa_policy": "required_privileged",
         "audit_retention_years": "7",
         "audit_export_format": "csv_hash_manifest",
         "permissions_matrix": json.dumps(DEFAULT_PERMISSION_MATRIX),
@@ -444,6 +407,30 @@ def _access_denied_response(request: HttpRequest, allowed_roles: tuple[str, ...]
         details=f"Required roles: {', '.join(context['required_roles'])}",
     )
     return render(request, "hrms/access_denied.html", context, status=403)
+
+
+def _permission_denied_response(request: HttpRequest, permission_key: str) -> HttpResponse:
+    context = _build_context(
+        request,
+        page_title="Access Denied",
+        page_name="Access denied",
+        page_note="RBAC policy enforced by role-permission matrix.",
+    )
+    context["required_roles"] = [_role_label(_get_role(request))]
+    context["required_permission"] = permission_key
+    _log_audit_event(
+        request,
+        action_type="permission_denied",
+        outcome=AuditEvent.Outcome.DENIED,
+        details=f"Required permission: {permission_key}",
+    )
+    return render(request, "hrms/access_denied.html", context, status=403)
+
+
+def _require_permission(request: HttpRequest, permission_key: str) -> HttpResponse | None:
+    if not has_permission(request.user, permission_key):
+        return _permission_denied_response(request, permission_key)
+    return None
 
 
 def role_guard(*allowed_roles: str):
@@ -601,6 +588,8 @@ def admin_dashboard(request: HttpRequest) -> HttpResponse:
     today = timezone.now().date()
     active_sessions = Session.objects.filter(expire_date__gte=timezone.now()).count()
     flagged_open = AccessLog.objects.filter(is_flagged=True, alert_status=AccessLog.AlertStatus.OPEN).count()
+    latest_detection_run = DetectionRun.objects.order_by("-started_at").first()
+    latest_evaluation = EvaluationResult.objects.order_by("-created_at").first()
     context = _build_context(
         request,
         page_title="Admin Dashboard",
@@ -609,7 +598,7 @@ def admin_dashboard(request: HttpRequest) -> HttpResponse:
     )
     context["kpis"] = [
         {"label": "Total users", "value": f"{User.objects.count()}", "trend": "Managed identities in tenant"},
-        {"label": "Active sessions", "value": f"{active_sessions}", "trend": "Includes MFA-verified sessions"},
+        {"label": "Active sessions", "value": f"{active_sessions}", "trend": "Authenticated clinical/admin users"},
         {
             "label": "Records accessed today",
             "value": f"{AccessLog.objects.filter(accessed_at__date=today).count()}",
@@ -628,11 +617,142 @@ def admin_dashboard(request: HttpRequest) -> HttpResponse:
         }
         for log in recent_alert_logs
     ]
+    recent_access_logs = AccessLog.objects.select_related("user", "patient_record").order_by("-accessed_at")[:8]
+    context["recent_access_logs"] = [
+        {
+            "time": log.accessed_at,
+            "user": log.user.username,
+            "patient": log.patient_record.hospital_id if log.patient_record else "-",
+            "action": log.action,
+            "ip": log.ip_address or "-",
+            "source": "Synthetic" if log.is_simulated else "Live",
+        }
+        for log in recent_access_logs
+    ]
+    context["user_anomaly_scores"] = list(
+        AccessLog.objects.exclude(anomaly_score__isnull=True)
+        .values("user__username", "role_snapshot")
+        .annotate(
+            events=Count("id"),
+            avg_score=Avg("anomaly_score"),
+            max_score=Max("anomaly_score"),
+            max_risk=Max("risk_score"),
+        )
+        .order_by("-max_score", "-max_risk")[:8]
+    )
+    context["latest_detection_run"] = latest_detection_run
+    context["latest_evaluation"] = latest_evaluation
+    context["evaluation_rows"] = EvaluationResult.objects.order_by("-created_at")[:8]
+    context["alert_analytics"] = _build_alert_analytics()
+    context["anomaly_score_distribution"] = _build_anomaly_score_distribution()
+    context["isolation_forest_info"] = {
+        "model_name": "IsolationForest",
+        "feature_columns": FEATURE_COLUMNS,
+        "default_contamination": 0.08,
+    }
     return render(request, "hrms/admin_dashboard.html", context)
 
 
 @role_guard("admin")
+@require_POST
+def run_detection_action(request: HttpRequest) -> HttpResponse:
+    try:
+        contamination = float(request.POST.get("contamination", "0.08") or 0.08)
+    except ValueError:
+        messages.error(request, "Invalid contamination value.")
+        return redirect("hrms-admin-dashboard")
+    threshold_raw = request.POST.get("threshold_quantile", "").strip()
+    threshold_quantile = None
+    if threshold_raw:
+        try:
+            threshold_quantile = float(threshold_raw)
+        except ValueError:
+            messages.error(request, "Invalid threshold quantile value.")
+            return redirect("hrms-admin-dashboard")
+        if not (0.0 < threshold_quantile < 1.0):
+            messages.error(request, "Threshold quantile must be between 0 and 1.")
+            return redirect("hrms-admin-dashboard")
+    summary = run_isolation_forest_detection(
+        contamination=contamination,
+        threshold_quantile=threshold_quantile,
+    )
+    _log_audit_event(
+        request,
+        action_type="run_detection",
+        details=(
+            f"IsolationForest run_id={summary.run_id}, flagged={summary.anomalies_flagged}, "
+            f"events={summary.total_events}, alerts={summary.automated_alerts_created}, "
+            f"threshold_q={threshold_quantile if threshold_quantile is not None else 'model_default'}"
+        )[:255],
+    )
+    messages.success(
+        request,
+        (
+            f"Isolation Forest run complete. Flagged {summary.anomalies_flagged}/{summary.total_events} "
+            f"events in {summary.execution_time_ms:.2f} ms. "
+            f"Automated alerts opened/reopened: {summary.automated_alerts_created}."
+        ),
+    )
+    return redirect("hrms-admin-dashboard")
+
+
+@role_guard("admin")
+@require_POST
+def run_evaluation_action(request: HttpRequest) -> HttpResponse:
+    try:
+        contamination = float(request.POST.get("contamination", "0.08") or 0.08)
+    except ValueError:
+        messages.error(request, "Invalid contamination value.")
+        return redirect("hrms-admin-dashboard")
+    threshold_raw = request.POST.get("threshold_quantile", "").strip()
+    threshold_quantile = None
+    if threshold_raw:
+        try:
+            threshold_quantile = float(threshold_raw)
+        except ValueError:
+            messages.error(request, "Invalid threshold quantile value.")
+            return redirect("hrms-admin-dashboard")
+        if not (0.0 < threshold_quantile < 1.0):
+            messages.error(request, "Threshold quantile must be between 0 and 1.")
+            return redirect("hrms-admin-dashboard")
+    logs = AccessLog.objects.filter(is_simulated=True).order_by("accessed_at")
+    if not logs.exists():
+        messages.error(
+            request,
+            "No simulated dataset found. Run generate_synthetic_logs first, then evaluate.",
+        )
+        return redirect("hrms-admin-dashboard")
+
+    result = evaluate_detector(
+        logs,
+        contamination=contamination,
+        threshold_quantile=threshold_quantile,
+    )
+    _log_audit_event(
+        request,
+        action_type="run_evaluation",
+        details=(
+            f"precision={result.precision:.4f}, recall={result.recall:.4f}, "
+            f"fpr={result.false_positive_rate:.4f}, adr={result.anomaly_detection_rate:.4f}, "
+            f"exec_ms={result.execution_time_ms:.2f}"
+        )[:255],
+    )
+    messages.success(
+        request,
+        (
+            f"Evaluation complete. Precision={result.precision:.4f}, Recall={result.recall:.4f}, "
+            f"FPR={result.false_positive_rate:.4f}, ADR={result.anomaly_detection_rate:.4f}, "
+            f"Execution={result.execution_time_ms:.2f} ms."
+        ),
+    )
+    return redirect("hrms-admin-dashboard")
+
+
+@role_guard("admin")
 def users_page(request: HttpRequest) -> HttpResponse:
+    denied = _require_permission(request, "manage_users")
+    if denied:
+        return denied
     context = _build_context(
         request,
         page_title="User Management",
@@ -650,7 +770,6 @@ def users_page(request: HttpRequest) -> HttpResponse:
             "department": user.profile.department if hasattr(user, "profile") else "",
             "status": "Active" if user.is_active else "Suspended",
             "last_login": user.last_login.strftime("%Y-%m-%d %H:%M") if user.last_login else "-",
-            "mfa": "Enabled" if getattr(user.profile, "mfa_enabled", False) else "Disabled",
         }
         for user in queryset
     ]
@@ -661,6 +780,9 @@ def users_page(request: HttpRequest) -> HttpResponse:
 @role_guard("admin")
 @require_POST
 def create_user_action(request: HttpRequest) -> HttpResponse:
+    denied = _require_permission(request, "manage_users")
+    if denied:
+        return denied
     full_name = request.POST.get("full_name", "").strip()
     staff_id = request.POST.get("staff_id", "").strip()
     email = request.POST.get("email", "").strip()
@@ -692,7 +814,6 @@ def create_user_action(request: HttpRequest) -> HttpResponse:
     profile, _ = UserProfile.objects.get_or_create(user=user)
     profile.role = _demo_role_to_profile(demo_role)
     profile.department = department
-    profile.mfa_enabled = True
     profile.force_password_reset = True
     profile.save()
 
@@ -709,6 +830,9 @@ def create_user_action(request: HttpRequest) -> HttpResponse:
 @role_guard("admin")
 @require_POST
 def disable_user_action(request: HttpRequest, user_id: int) -> HttpResponse:
+    denied = _require_permission(request, "manage_users")
+    if denied:
+        return denied
     target = get_object_or_404(User, id=user_id)
     reason = request.POST.get("reason", "").strip()
     target.is_active = False
@@ -727,6 +851,9 @@ def disable_user_action(request: HttpRequest, user_id: int) -> HttpResponse:
 @role_guard("admin")
 @require_POST
 def reset_password_action(request: HttpRequest, user_id: int) -> HttpResponse:
+    denied = _require_permission(request, "manage_users")
+    if denied:
+        return denied
     target = get_object_or_404(User, id=user_id)
     temp_password = f"Reset@{random.randint(1000, 9999)}"
     target.set_password(temp_password)
@@ -747,16 +874,10 @@ def reset_password_action(request: HttpRequest, user_id: int) -> HttpResponse:
 
 @role_guard("admin")
 @require_POST
-def force_mfa_action(request: HttpRequest) -> HttpResponse:
-    UserProfile.objects.update(mfa_enabled=True)
-    _log_audit_event(request, action_type="force_mfa", details="MFA enforced for all user profiles")
-    messages.success(request, "MFA policy pushed to all users.")
-    return redirect("hrms-users")
-
-
-@role_guard("admin")
-@require_POST
 def assign_role_action(request: HttpRequest, user_id: int) -> HttpResponse:
+    denied = _require_permission(request, "manage_users")
+    if denied:
+        return denied
     target = get_object_or_404(User, id=user_id)
     demo_role = request.POST.get("role", "nurse")
     if demo_role not in ROLE_CONFIG:
@@ -778,6 +899,9 @@ def assign_role_action(request: HttpRequest, user_id: int) -> HttpResponse:
 
 @role_guard("admin")
 def roles_permissions_page(request: HttpRequest) -> HttpResponse:
+    denied = _require_permission(request, "manage_users")
+    if denied:
+        return denied
     context = _build_context(
         request,
         page_title="Roles & Permissions",
@@ -819,6 +943,9 @@ def roles_permissions_page(request: HttpRequest) -> HttpResponse:
 @role_guard("admin")
 @require_POST
 def save_permissions_action(request: HttpRequest) -> HttpResponse:
+    denied = _require_permission(request, "manage_users")
+    if denied:
+        return denied
     reason = request.POST.get("change_reason", "").strip()
     if not reason:
         messages.error(request, "Reason for change is required.")
@@ -854,6 +981,9 @@ def _setting_value(key: str, default: str) -> str:
 
 @role_guard("admin")
 def system_settings_page(request: HttpRequest) -> HttpResponse:
+    denied = _require_permission(request, "manage_users")
+    if denied:
+        return denied
     context = _build_context(
         request,
         page_title="System Settings",
@@ -864,11 +994,9 @@ def system_settings_page(request: HttpRequest) -> HttpResponse:
         "password_min_length": _setting_value("password_min_length", "12"),
         "password_rotation_days": _setting_value("password_rotation_days", "90"),
         "session_timeout_minutes": _setting_value("session_timeout_minutes", "10"),
-        "mfa_policy": _setting_value("mfa_policy", "required_privileged"),
         "audit_retention_years": _setting_value("audit_retention_years", "7"),
         "audit_export_format": _setting_value("audit_export_format", "csv_hash_manifest"),
         "require_complex_password": _setting_value("require_complex_password", "true"),
-        "step_up_export_mfa": _setting_value("step_up_export_mfa", "true"),
         "allow_trusted_device_bypass": _setting_value("allow_trusted_device_bypass", "false"),
         "require_export_reason": _setting_value("require_export_reason", "true"),
     }
@@ -878,16 +1006,17 @@ def system_settings_page(request: HttpRequest) -> HttpResponse:
 @role_guard("admin")
 @require_POST
 def save_system_settings_action(request: HttpRequest) -> HttpResponse:
+    denied = _require_permission(request, "manage_users")
+    if denied:
+        return denied
     actor = _actor_user(request)
     key_values = {
         "password_min_length": request.POST.get("password_min_length", "12"),
         "password_rotation_days": request.POST.get("password_rotation_days", "90"),
         "session_timeout_minutes": request.POST.get("session_timeout_minutes", "10"),
-        "mfa_policy": request.POST.get("mfa_policy", "required_privileged"),
         "audit_retention_years": request.POST.get("audit_retention_years", "7"),
         "audit_export_format": request.POST.get("audit_export_format", "csv_hash_manifest"),
         "require_complex_password": "true" if request.POST.get("require_complex_password") else "false",
-        "step_up_export_mfa": "true" if request.POST.get("step_up_export_mfa") else "false",
         "allow_trusted_device_bypass": "true" if request.POST.get("allow_trusted_device_bypass") else "false",
         "require_export_reason": "true" if request.POST.get("require_export_reason") else "false",
     }
@@ -966,6 +1095,9 @@ def nurse_dashboard(request: HttpRequest) -> HttpResponse:
 
 @role_guard("nurse", "doctor")
 def patient_search_page(request: HttpRequest) -> HttpResponse:
+    denied = _require_permission(request, "view_patient")
+    if denied:
+        return denied
     context = _build_context(
         request,
         page_title="Patient Search",
@@ -1006,6 +1138,9 @@ def patient_search_page(request: HttpRequest) -> HttpResponse:
 @role_guard("nurse", "doctor")
 @require_POST
 def open_patient_record_action(request: HttpRequest, patient_id: int) -> HttpResponse:
+    denied = _require_permission(request, "view_patient")
+    if denied:
+        return denied
     patient = get_object_or_404(PatientRecord, id=patient_id)
     reason = request.POST.get("access_reason", "").strip()
     note = request.POST.get("access_note", "").strip()
@@ -1038,11 +1173,21 @@ def patient_record_default_redirect(request: HttpRequest) -> HttpResponse:
     if not patient:
         messages.error(request, "No patient records found. Create a patient record first.")
         return redirect("hrms-patient-search")
-    return redirect("hrms-patient-record", pk=patient.id)
+    focus = request.GET.get("focus", "").strip().lower()
+    anchor = ""
+    if focus == "vitals":
+        anchor = "#vitals-form"
+    elif focus == "notes":
+        anchor = "#note-form"
+    target = reverse("hrms-patient-record", kwargs={"pk": patient.id})
+    return redirect(f"{target}{anchor}")
 
 
 @role_guard("nurse", "doctor")
 def patient_record_page(request: HttpRequest, pk: int) -> HttpResponse:
+    denied = _require_permission(request, "view_patient")
+    if denied:
+        return denied
     patient = get_object_or_404(PatientRecord.objects.select_related("attending_doctor"), id=pk)
     actor = _actor_or_fallback_user(request)
     log_record_access(
@@ -1082,6 +1227,9 @@ def _to_int(value: str, field: str):
 @role_guard("nurse", "doctor")
 @require_POST
 def add_vitals_action(request: HttpRequest, pk: int) -> HttpResponse:
+    denied = _require_permission(request, "add_vitals")
+    if denied:
+        return denied
     patient = get_object_or_404(PatientRecord, id=pk)
     try:
         temperature = float(request.POST.get("temperature_c", ""))
@@ -1123,6 +1271,9 @@ def add_vitals_action(request: HttpRequest, pk: int) -> HttpResponse:
 @role_guard("nurse", "doctor")
 @require_POST
 def add_nursing_note_action(request: HttpRequest, pk: int) -> HttpResponse:
+    denied = _require_permission(request, "add_nursing_notes")
+    if denied:
+        return denied
     patient = get_object_or_404(PatientRecord, id=pk)
     note_text = request.POST.get("note_text", "").strip()
     if not note_text:
@@ -1208,6 +1359,9 @@ def signoff_handover_action(request: HttpRequest) -> HttpResponse:
 
 @role_guard("admin")
 def audit_logs_page(request: HttpRequest) -> HttpResponse:
+    denied = _require_permission(request, "view_audit_log")
+    if denied:
+        return denied
     context = _build_context(
         request,
         page_title="Audit Logs",
@@ -1239,6 +1393,9 @@ def audit_logs_page(request: HttpRequest) -> HttpResponse:
 
 @role_guard("admin")
 def export_audit_csv(request: HttpRequest) -> HttpResponse:
+    denied = _require_permission(request, "export_audit_log")
+    if denied:
+        return denied
     role = _get_role(request)
     if not ROLE_CONFIG[role]["can_export_audit"]:
         messages.error(request, "You don't have permission to export audit logs.")
@@ -1274,8 +1431,191 @@ def export_audit_csv(request: HttpRequest) -> HttpResponse:
     return response
 
 
+def _build_alert_analytics() -> dict:
+    now = timezone.now()
+    last_24h = now - timedelta(hours=24)
+    prev_24h = now - timedelta(hours=48)
+
+    recent_alerts = AccessLog.objects.filter(is_flagged=True, accessed_at__gte=last_24h)
+    previous_alerts = AccessLog.objects.filter(
+        is_flagged=True,
+        accessed_at__gte=prev_24h,
+        accessed_at__lt=last_24h,
+    )
+
+    recent_count = recent_alerts.count()
+    previous_count = previous_alerts.count()
+    hourly_avg = recent_count / 24.0
+
+    growth_rate = 0.0
+    if previous_count > 0:
+        growth_rate = (recent_count - previous_count) / previous_count
+
+    predicted_next_24h = int(round(max(0.0, recent_count * (1.0 + growth_rate))))
+    predicted_next_hour = max(0, int(round(predicted_next_24h / 24.0)))
+
+    open_alerts = AccessLog.objects.filter(
+        is_flagged=True,
+        alert_status=AccessLog.AlertStatus.OPEN,
+    ).count()
+    critical_open = AccessLog.objects.filter(
+        is_flagged=True,
+        alert_status=AccessLog.AlertStatus.OPEN,
+        alert_severity=AccessLog.AlertSeverity.CRITICAL,
+    ).count()
+
+    recommended_quantile = 0.95
+    if open_alerts > 120:
+        recommended_quantile = 0.97
+    elif open_alerts < 30:
+        recommended_quantile = 0.93
+
+    return {
+        "recent_24h_count": recent_count,
+        "previous_24h_count": previous_count,
+        "hourly_average": round(hourly_avg, 2),
+        "growth_percent": round(growth_rate * 100.0, 2),
+        "predicted_next_24h": predicted_next_24h,
+        "predicted_next_hour": predicted_next_hour,
+        "open_alerts": open_alerts,
+        "critical_open_alerts": critical_open,
+        "recommended_quantile": recommended_quantile,
+    }
+
+
+def _build_anomaly_score_distribution(bin_count: int = 10) -> dict:
+    scores = list(
+        AccessLog.objects.exclude(anomaly_score__isnull=True).values_list("anomaly_score", flat=True)
+    )
+    if not scores:
+        return {"bins": [], "min": None, "max": None, "total": 0}
+
+    min_score = min(scores)
+    max_score = max(scores)
+    total = len(scores)
+
+    if min_score == max_score:
+        return {
+            "bins": [
+                {
+                    "label": f"{min_score:.4f}",
+                    "count": total,
+                    "height": 100,
+                }
+            ],
+            "min": min_score,
+            "max": max_score,
+            "total": total,
+        }
+
+    width = (max_score - min_score) / bin_count
+    counts = [0] * bin_count
+    for score in scores:
+        index = int((score - min_score) / width)
+        if index >= bin_count:
+            index = bin_count - 1
+        elif index < 0:
+            index = 0
+        counts[index] += 1
+
+    max_count = max(counts) or 1
+    bins = []
+    for i, count in enumerate(counts):
+        low = min_score + i * width
+        high = low + width
+        bins.append(
+            {
+                "label": f"{low:.3f} to {high:.3f}",
+                "count": count,
+                "height": int(round((count / max_count) * 100)),
+            }
+        )
+
+    return {
+        "bins": bins,
+        "min": min_score,
+        "max": max_score,
+        "total": total,
+        "bin_count": bin_count,
+    }
+
+
+@role_guard("admin")
+def export_anomaly_histogram_csv(request: HttpRequest) -> HttpResponse:
+    bins = int(request.GET.get("bins", 10))
+    distribution = _build_anomaly_score_distribution(bin_count=bins)
+    if request.GET.get("format") == "svg":
+        svg = _render_anomaly_score_distribution_svg(distribution)
+        response = HttpResponse(svg, content_type="image/svg+xml")
+        response["Content-Disposition"] = "attachment; filename=anomaly_score_distribution.svg"
+        return response
+    buffer = StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(["Bin Label", "Count", "Min Score", "Max Score", "Total Events"])
+    for item in distribution["bins"]:
+        writer.writerow(
+            [
+                item["label"],
+                item["count"],
+                f"{distribution['min']:.6f}" if distribution["min"] is not None else "",
+                f"{distribution['max']:.6f}" if distribution["max"] is not None else "",
+                distribution["total"],
+            ]
+        )
+    response = HttpResponse(buffer.getvalue(), content_type="text/csv")
+    response["Content-Disposition"] = "attachment; filename=anomaly_score_distribution.csv"
+    return response
+
+
+def _render_anomaly_score_distribution_svg(distribution: dict) -> str:
+    width = 860
+    height = 280
+    padding = 24
+    bar_gap = 6
+    bins = distribution.get("bins", [])
+    if not bins:
+        return (
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">'
+            '<rect width="100%" height="100%" fill="#f8fafc"/>'
+            '<text x="50%" y="50%" text-anchor="middle" fill="#64748b" font-size="14">'
+            "No anomaly scores available"
+            "</text></svg>"
+        )
+
+    bar_width = max(12, int((width - 2 * padding - (len(bins) - 1) * bar_gap) / len(bins)))
+    max_height = height - 2 * padding - 30
+    bars = []
+    labels = []
+    for i, item in enumerate(bins):
+        bar_height = int(round((item["height"] / 100) * max_height))
+        x = padding + i * (bar_width + bar_gap)
+        y = height - padding - bar_height - 20
+        bars.append(
+            f'<rect x="{x}" y="{y}" width="{bar_width}" height="{bar_height}" '
+            'rx="5" fill="#0b7285"/>'
+        )
+        label = item["label"]
+        labels.append(
+            f'<text x="{x + bar_width / 2}" y="{height - padding}" '
+            'text-anchor="middle" fill="#64748b" font-size="9">'
+            f"{label}</text>"
+        )
+
+    svg_parts = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">',
+        '<rect width="100%" height="100%" fill="#f8fafc"/>',
+        *bars,
+        *labels,
+        "</svg>",
+    ]
+    return "".join(svg_parts)
+
+
 @role_guard("admin")
 def alerts_page(request: HttpRequest) -> HttpResponse:
+    denied = _require_permission(request, "triage_alerts")
+    if denied:
+        return denied
     context = _build_context(
         request,
         page_title="Anomaly Alerts",
@@ -1308,12 +1648,16 @@ def alerts_page(request: HttpRequest) -> HttpResponse:
         profile__role=RoleChoices.ADMIN
     ).order_by("username")
     context["case_options"] = InvestigationCase.objects.order_by("-opened_at")[:20]
+    context["alert_analytics"] = _build_alert_analytics()
     return render(request, "hrms/alerts.html", context)
 
 
 @role_guard("admin")
 @require_POST
 def triage_alert_action(request: HttpRequest, alert_id: int) -> HttpResponse:
+    denied = _require_permission(request, "triage_alerts")
+    if denied:
+        return denied
     alert = get_object_or_404(AccessLog, id=alert_id, is_flagged=True)
     investigator_id = request.POST.get("investigator_id")
     triage_notes = request.POST.get("triage_notes", "").strip()
@@ -1367,6 +1711,9 @@ def triage_alert_action(request: HttpRequest, alert_id: int) -> HttpResponse:
 @role_guard("admin")
 @require_POST
 def close_alert_action(request: HttpRequest, alert_id: int) -> HttpResponse:
+    denied = _require_permission(request, "close_alerts")
+    if denied:
+        return denied
     alert = get_object_or_404(AccessLog, id=alert_id, is_flagged=True)
     closure_reason = request.POST.get("closure_reason", "").strip()
     final_note = request.POST.get("final_note", "").strip()
@@ -1389,6 +1736,9 @@ def close_alert_action(request: HttpRequest, alert_id: int) -> HttpResponse:
 
 @role_guard("admin")
 def investigations_page(request: HttpRequest) -> HttpResponse:
+    denied = _require_permission(request, "triage_alerts")
+    if denied:
+        return denied
     context = _build_context(
         request,
         page_title="Investigation Cases",
@@ -1418,6 +1768,9 @@ def investigations_page(request: HttpRequest) -> HttpResponse:
 @role_guard("admin")
 @require_POST
 def add_case_note_action(request: HttpRequest, case_id: int) -> HttpResponse:
+    denied = _require_permission(request, "triage_alerts")
+    if denied:
+        return denied
     case = get_object_or_404(InvestigationCase, id=case_id)
     note = request.POST.get("note", "").strip()
     if not note:
@@ -1446,6 +1799,9 @@ def add_case_note_action(request: HttpRequest, case_id: int) -> HttpResponse:
 @role_guard("admin")
 @require_POST
 def close_case_action(request: HttpRequest, case_id: int) -> HttpResponse:
+    denied = _require_permission(request, "close_alerts")
+    if denied:
+        return denied
     case = get_object_or_404(InvestigationCase, id=case_id)
     disposition = request.POST.get("disposition", "").strip()
     closure_note = request.POST.get("closure_note", "").strip()
@@ -1476,6 +1832,9 @@ def close_case_action(request: HttpRequest, case_id: int) -> HttpResponse:
 
 @role_guard("admin")
 def export_case_report_action(request: HttpRequest, case_id: int) -> HttpResponse:
+    denied = _require_permission(request, "export_audit_log")
+    if denied:
+        return denied
     role = _get_role(request)
     case = get_object_or_404(InvestigationCase, id=case_id)
     if not ROLE_CONFIG[role]["can_export_audit"]:

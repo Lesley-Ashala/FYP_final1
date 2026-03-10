@@ -1,6 +1,31 @@
 {% extends "hrms/base_shell.html" %}
 
 {% block content %}
+<section class="card" style="margin-bottom:14px;">
+    <div class="card-header">
+        <div>
+            <h3 class="card-title">Predictive Alert Analytics</h3>
+            <p class="card-note">Forecasted alert load based on the recent 48-hour anomaly trend.</p>
+        </div>
+    </div>
+    <div class="grid four">
+        <div class="pill">Recent 24h alerts: {{ alert_analytics.recent_24h_count }}</div>
+        <div class="pill">Previous 24h alerts: {{ alert_analytics.previous_24h_count }}</div>
+        <div class="pill">Predicted next hour: {{ alert_analytics.predicted_next_hour }}</div>
+        <div class="pill">Predicted next 24h: {{ alert_analytics.predicted_next_24h }}</div>
+        <div class="pill">Trend change: {{ alert_analytics.growth_percent }}%</div>
+        <div class="pill">Open alerts: {{ alert_analytics.open_alerts }}</div>
+        <div class="pill">Critical open alerts: {{ alert_analytics.critical_open_alerts }}</div>
+        <div class="pill">Recommended threshold quantile: {{ alert_analytics.recommended_quantile }}</div>
+    </div>
+    <form method="post" action="{% url 'hrms-run-detection' %}" class="button-row" style="margin-top:12px;">
+        {% csrf_token %}
+        <input class="input" type="number" step="0.01" min="0.01" max="0.50" name="contamination" value="0.08" style="max-width:140px;">
+        <input class="input" type="number" step="0.01" min="0.01" max="0.99" name="threshold_quantile" value="{{ alert_analytics.recommended_quantile }}" style="max-width:190px;">
+        <button class="btn" type="submit">Run Auto Detection + Alerts</button>
+    </form>
+</section>
+
 <section class="split">
     <article class="card">
         <div class="card-header">

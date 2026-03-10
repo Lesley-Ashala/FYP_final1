@@ -33,6 +33,11 @@ Main URLs:
 - Admin monitor UI: `http://127.0.0.1:8000/hrms/admin-dashboard/`
 - Legacy monitoring pages: `http://127.0.0.1:8000/patients/`, `http://127.0.0.1:8000/access-logs/`, `http://127.0.0.1:8000/anomalies/`, `http://127.0.0.1:8000/evaluations/`
 
+Note about `db.sqlite3`:
+- `db.sqlite3` is a binary SQLite database file, not a text file.
+- Editors may show: "The file is not displayed in the text editor because it is either binary or uses an unsupported text encoding."
+- This is expected. Use SQLite tools (`DB Browser for SQLite`, `sqlite3`) or Django admin/views to inspect data.
+
 Seeded HRMS users (password: `Welcome@123`):
 - `ADM-0192` (admin)
 - `DOC-0458` (doctor)
@@ -138,6 +143,16 @@ Evaluation table is printed in CLI and stored in DB for `/evaluations/`.
 - Evaluation command: `evaluate_detection`.
 - UI table at `/evaluations/`.
 
+## 7.1) Functional Requirements Coverage
+
+- Access logging + log storage: `AccessLog` model + `log_record_access`.
+- Data preparation + feature extraction: `build_feature_dataframe` and `extract_access_features`.
+- Anomaly scoring (Isolation Forest): `run_isolation_forest_detection`.
+- Flagging + alerts: `is_flagged`, `risk_score`, `alert_status`, automated alerts opened.
+- Admin viewing: HRMS admin pages (`/hrms/admin-dashboard/`, `/hrms/alerts/`, `/hrms/investigations/`).
+- Report export: audit log CSV export + investigation case report export.
+- Plot anomaly score distribution: Admin dashboard includes histogram of `anomaly_score` values.
+
 ## 8) Core Files
 
 - `monitoring/models.py` -> users/roles, patient records, access logs, detection runs, evaluation results
@@ -146,3 +161,17 @@ Evaluation table is printed in CLI and stored in DB for `/evaluations/`.
 - `monitoring/hrms_views.py` -> role-based HRMS pages and admin alert workflow
 - `monitoring/synthetic.py` -> synthetic dataset generation
 - `monitoring/management/commands/` -> operational commands
+
+## 9) View Table Relationships
+
+Text relationship view:
+
+```bash
+python manage.py show_db_relationships
+```
+
+Mermaid ER relationship output:
+
+```bash
+python manage.py show_db_relationships --format mermaid
+```

@@ -8,16 +8,16 @@
     <div class="notice error">{{ error }}</div>
 {% endif %}
 
-<form method="post">
+<form method="post" autocomplete="off">
     {% csrf_token %}
     <div class="field">
         <label for="staff_id">Staff ID / Email</label>
-        <input class="input" id="staff_id" name="staff_id" placeholder="e.g., NUR-1142 or name@hospital.local">
+        <input class="input" id="staff_id" name="staff_id" placeholder="e.g., NUR-1142 or name@hospital.local" autocomplete="off" autocapitalize="none" spellcheck="false">
     </div>
 
     <div class="field">
         <label for="password">Password</label>
-        <input class="input" id="password" name="password" type="password" placeholder="Enter password">
+        <input class="input" id="password" name="password" type="password" placeholder="Enter password" autocomplete="new-password">
     </div>
 
     <div class="row">

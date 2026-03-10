@@ -25,23 +25,11 @@
         </article>
 
         <article class="card">
-            <h3 class="card-title">Session & MFA Policy</h3>
+            <h3 class="card-title">Session Policy</h3>
             <div class="field" style="margin-top:10px;">
                 <label>Session timeout (minutes)</label>
                 <input class="input" name="session_timeout_minutes" value="{{ settings.session_timeout_minutes }}">
             </div>
-            <div class="field">
-                <label>MFA policy</label>
-                <select class="select" name="mfa_policy">
-                    <option value="required_privileged" {% if settings.mfa_policy == "required_privileged" %}selected{% endif %}>Force MFA on privileged roles</option>
-                    <option value="required_all" {% if settings.mfa_policy == "required_all" %}selected{% endif %}>Force MFA on all roles</option>
-                    <option value="optional" {% if settings.mfa_policy == "optional" %}selected{% endif %}>MFA optional</option>
-                </select>
-            </div>
-            <label class="checkbox">
-                <input type="checkbox" name="step_up_export_mfa" {% if settings.step_up_export_mfa == "true" %}checked{% endif %}>
-                Step-up MFA for export actions
-            </label>
             <label class="checkbox">
                 <input type="checkbox" name="allow_trusted_device_bypass" {% if settings.allow_trusted_device_bypass == "true" %}checked{% endif %}>
                 Allow trusted device bypass (not recommended)

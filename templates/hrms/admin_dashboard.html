@@ -16,12 +16,13 @@
         <div class="card-header">
             <div>
                 <h3 class="card-title">Quick Actions</h3>
-                <p class="card-note">Common admin workflows with enforced audit trails.</p>
+                <p class="card-note">Core security operations: roles, logging, detection, and alert response.</p>
             </div>
         </div>
         <div class="button-row">
             <a class="btn" href="{% url 'hrms-users' %}">Create User</a>
             <a class="btn secondary" href="{% url 'hrms-roles-permissions' %}">Assign Role</a>
+            <a class="btn secondary" href="{% url 'accesslog-list' %}">View Access Logs</a>
             <a class="btn secondary" href="{% url 'hrms-audit-logs' %}">View Audit Log</a>
             <a class="btn ghost" href="{% url 'hrms-alerts' %}">Review Alerts</a>
         </div>
@@ -33,17 +34,157 @@
     <article class="card">
         <div class="card-header">
             <div>
-                <h3 class="card-title">Session Health</h3>
-                <p class="card-note">Real-time access monitoring controls.</p>
+                <h3 class="card-title">Core Controls</h3>
+                <p class="card-note">Focused only on RBAC, access logging, anomaly flagging, and alerts.</p>
             </div>
         </div>
         <div class="grid">
-            <div class="pill">MFA compliance: 98.5%</div>
-            <div class="pill">Locked accounts (24h): 3</div>
-            <div class="pill">Privileged session idle timeout: 10 min</div>
-            <div class="pill">Unmanaged devices blocked: 12</div>
+            <div class="pill">Role assignments enforced (Admin/Doctor/Nurse)</div>
+            <div class="pill">Live access logging enabled</div>
+            <div class="pill">Anomaly flagging pipeline active</div>
+            <div class="pill">Automated alerts open on flagged events</div>
         </div>
     </article>
+</section>
+
+<section class="card" style="margin-top:14px;" id="ml-monitor">
+    <div class="card-header">
+        <div>
+            <h3 class="card-title">Isolation Forest Monitoring</h3>
+            <p class="card-note">
+                Model: {{ isolation_forest_info.model_name }} |
+                Features: {{ isolation_forest_info.feature_columns|join:", " }}
+            </p>
+        </div>
+    </div>
+
+    <div class="grid two" style="margin-bottom:12px;">
+        <article>
+            <h4 style="margin:0 0 8px;">Run Detection</h4>
+            <form method="post" action="{% url 'hrms-run-detection' %}" class="button-row">
+                {% csrf_token %}
+                <input class="input" type="number" step="0.01" min="0.01" max="0.50" name="contamination" value="{{ isolation_forest_info.default_contamination }}" style="max-width:160px;">
+                <input class="input" type="number" step="0.01" min="0.01" max="0.99" name="threshold_quantile" value="{{ alert_analytics.recommended_quantile }}" style="max-width:190px;">
+                <button class="btn" type="submit">Run Isolation Forest</button>
+            </form>
+            {% if latest_detection_run %}
+                <p class="meta" style="margin-top:8px;">
+                    Last run: {{ latest_detection_run.started_at|date:"Y-m-d H:i:s" }},
+                    flagged {{ latest_detection_run.anomalies_flagged }}/{{ latest_detection_run.total_events_analyzed }},
+                    execution {{ latest_detection_run.execution_time_ms|floatformat:2 }} ms.
+                </p>
+            {% endif %}
+        </article>
+
+        <article>
+            <h4 style="margin:0 0 8px;">Run Evaluation</h4>
+            <form method="post" action="{% url 'hrms-run-evaluation' %}" class="button-row">
+                {% csrf_token %}
+                <input class="input" type="number" step="0.01" min="0.01" max="0.50" name="contamination" value="{{ isolation_forest_info.default_contamination }}" style="max-width:160px;">
+                <input class="input" type="number" step="0.01" min="0.01" max="0.99" name="threshold_quantile" value="{{ alert_analytics.recommended_quantile }}" style="max-width:190px;">
+                <button class="btn secondary" type="submit">Evaluate Model</button>
+            </form>
+            {% if latest_evaluation %}
+                <p class="meta" style="margin-top:8px;">
+                    Latest metrics: Precision {{ latest_evaluation.precision|floatformat:4 }},
+                    Recall {{ latest_evaluation.recall|floatformat:4 }},
+                    FPR {{ latest_evaluation.false_positive_rate|floatformat:4 }},
+                    ADR {{ latest_evaluation.anomaly_detection_rate|floatformat:4 }},
+                    Execution {{ latest_evaluation.execution_time_ms|floatformat:2 }} ms.
+                </p>
+            {% endif %}
+        </article>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Created At</th>
+                    <th>Dataset Size</th>
+                    <th>Predicted Anomalies</th>
+                    <th>Precision</th>
+                    <th>Recall</th>
+                    <th>False Positive Rate</th>
+                    <th>Anomaly Detection Rate</th>
+                    <th>Execution Time (ms)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in evaluation_rows %}
+                    <tr>
+                        <td>{{ item.created_at|date:"Y-m-d H:i:s" }}</td>
+                        <td>{{ item.dataset_size }}</td>
+                        <td>{{ item.predicted_anomalies }}</td>
+                        <td>{{ item.precision|floatformat:4 }}</td>
+                        <td>{{ item.recall|floatformat:4 }}</td>
+                        <td>{{ item.false_positive_rate|floatformat:4 }}</td>
+                        <td>{{ item.anomaly_detection_rate|floatformat:4 }}</td>
+                        <td>{{ item.execution_time_ms|floatformat:2 }}</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="8">No evaluation runs yet. Click "Evaluate Model" to generate metrics.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="card" style="margin-top:14px;">
+    <div class="card-header">
+        <div>
+            <h3 class="card-title">Anomaly Score Distribution</h3>
+            <p class="card-note">Histogram of Isolation Forest anomaly scores across access logs.</p>
+        </div>
+        <div class="button-row">
+            {% if anomaly_score_distribution.total %}
+                <span class="pill">Total scored events: {{ anomaly_score_distribution.total }}</span>
+                <a class="btn secondary" href="{% url 'hrms-export-anomaly-histogram' %}?bins={{ anomaly_score_distribution.bin_count }}">Export CSV</a>
+                <a class="btn secondary" href="{% url 'hrms-export-anomaly-histogram' %}?format=svg">Download Chart</a>
+            {% endif %}
+        </div>
+    </div>
+    {% if anomaly_score_distribution.bins %}
+        <div class="histogram">
+            {% for bin in anomaly_score_distribution.bins %}
+                <div class="hist-bar">
+                    <div class="hist-bar-fill" style="height: {{ bin.height }}%;"></div>
+                    <div class="hist-bar-meta">
+                        <span class="hist-count">{{ bin.count }}</span>
+                        <span class="hist-label">{{ bin.label }}</span>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="notice">No anomaly scores available yet. Run detection to generate the distribution.</div>
+    {% endif %}
+</section>
+
+<section class="card" style="margin-top:14px;">
+    <div class="card-header">
+        <div>
+            <h3 class="card-title">Predictive Alert Analytics</h3>
+            <p class="card-note">Forecasted alert load based on recent trend and current backlog.</p>
+        </div>
+        <a class="btn secondary" href="{% url 'hrms-alerts' %}">Open Alerts</a>
+    </div>
+    <div class="grid two">
+        <div class="pill">Recent 24h alerts: {{ alert_analytics.recent_24h_count }}</div>
+        <div class="pill">Previous 24h alerts: {{ alert_analytics.previous_24h_count }}</div>
+        <div class="pill">Trend change: {{ alert_analytics.growth_percent }}%</div>
+        <div class="pill">Predicted next hour: {{ alert_analytics.predicted_next_hour }}</div>
+        <div class="pill">Predicted next 24h: {{ alert_analytics.predicted_next_24h }}</div>
+        <div class="pill">Critical open alerts: {{ alert_analytics.critical_open_alerts }}</div>
+    </div>
+    <form method="post" action="{% url 'hrms-run-detection' %}" class="button-row" style="margin-top:12px;">
+        {% csrf_token %}
+        <input class="input" type="number" step="0.01" min="0.01" max="0.50" name="contamination" value="{{ isolation_forest_info.default_contamination }}" style="max-width:160px;">
+        <input class="input" type="number" step="0.01" min="0.01" max="0.99" name="threshold_quantile" value="{{ alert_analytics.recommended_quantile }}" style="max-width:190px;">
+        <button class="btn" type="submit">Run Auto Detection + Alerts</button>
+    </form>
 </section>
 
 <section class="card" style="margin-top:14px;">
@@ -78,5 +219,83 @@
             </tbody>
         </table>
     </div>
+</section>
+
+<section class="grid two" style="margin-top:14px;">
+    <article class="card">
+        <div class="card-header">
+            <div>
+                <h3 class="card-title">Recent Access Logs</h3>
+                <p class="card-note">Latest user record-access events with source IP and action type.</p>
+            </div>
+            <a class="btn secondary" href="{% url 'accesslog-list' %}">View All Logs</a>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>User</th>
+                        <th>Patient</th>
+                        <th>Action</th>
+                        <th>IP</th>
+                        <th>Source</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in recent_access_logs %}
+                        <tr>
+                            <td>{{ row.time|date:"Y-m-d H:i:s" }}</td>
+                            <td>{{ row.user }}</td>
+                            <td>{{ row.patient }}</td>
+                            <td>{{ row.action }}</td>
+                            <td>{{ row.ip }}</td>
+                            <td>{{ row.source }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="6">No access log events available.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </article>
+
+    <article class="card">
+        <div class="card-header">
+            <div>
+                <h3 class="card-title">Isolation Forest Scores by User</h3>
+                <p class="card-note">Highest anomaly-score users in current dataset.</p>
+            </div>
+            <a class="btn secondary" href="{% url 'hrms-alerts' %}">Investigate</a>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Role</th>
+                        <th>Events</th>
+                        <th>Avg Score</th>
+                        <th>Max Score</th>
+                        <th>Max Risk</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in user_anomaly_scores %}
+                        <tr>
+                            <td>{{ row.user__username }}</td>
+                            <td>{{ row.role_snapshot }}</td>
+                            <td>{{ row.events }}</td>
+                            <td>{{ row.avg_score|floatformat:4 }}</td>
+                            <td>{{ row.max_score|floatformat:4 }}</td>
+                            <td>{{ row.max_risk|default:0|floatformat:2 }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="6">No anomaly scores available yet. Run detection first.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </article>
 </section>
 {% endblock %}

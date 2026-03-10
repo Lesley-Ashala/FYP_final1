@@ -21,8 +21,8 @@
         </div>
         <div class="button-row">
             <a class="btn" href="{% url 'hrms-patient-search' %}">Search Patient</a>
-            <a class="btn secondary" href="{% url 'hrms-patient-record-default' %}">Record Vitals</a>
-            <a class="btn secondary" href="{% url 'hrms-patient-record-default' %}">Add Nursing Note</a>
+            <a class="btn secondary" href="{% url 'hrms-patient-record-default' %}?focus=vitals">Record Vitals</a>
+            <a class="btn secondary" href="{% url 'hrms-patient-record-default' %}?focus=notes">Add Nursing Note</a>
         </div>
         <div class="notice" style="margin-top:12px;">
             Every chart access prompts for reason and is logged automatically for compliance.

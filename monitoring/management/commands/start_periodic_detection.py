@@ -1,7 +1,7 @@
 import time
 from datetime import timedelta
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
 from monitoring.models import AccessLog
@@ -36,12 +36,24 @@ class Command(BaseCommand):
             default=168,
             help="Analyze only logs from the last N hours on each run.",
         )
+        parser.add_argument(
+            "--threshold-quantile",
+            type=float,
+            default=None,
+            help=(
+                "Optional score quantile for calibrated flagging (0-1), "
+                "e.g. 0.95 flags top 5 percent highest anomaly scores per run."
+            ),
+        )
 
     def handle(self, *args, **options):
         interval = max(30, options["interval_seconds"])
         iterations = options["iterations"]
         contamination = options["contamination"]
         window_hours = options["window_hours"]
+        threshold_quantile = options["threshold_quantile"]
+        if threshold_quantile is not None and not (0.0 < threshold_quantile < 1.0):
+            raise CommandError("--threshold-quantile must be between 0 and 1 (exclusive).")
 
         run_count = 0
         self.stdout.write(
@@ -57,6 +69,7 @@ class Command(BaseCommand):
                 summary = run_isolation_forest_detection(
                     queryset,
                     contamination=contamination,
+                    threshold_quantile=threshold_quantile,
                 )
                 run_count += 1
                 self.stdout.write(

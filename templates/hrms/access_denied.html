@@ -11,11 +11,15 @@
             <span class="badge denied">Access Denied</span>
         </div>
         <div class="notice error">
-            Your current role is <strong>{{ demo_role_label }}</strong>. Required roles:
-            <strong>{{ required_roles|join:", " }}</strong>.
+            Your current role is <strong>{{ demo_role_label }}</strong>.
+            {% if required_permission %}
+                Required permission: <strong>{{ required_permission }}</strong>.
+            {% else %}
+                Required roles: <strong>{{ required_roles|join:", " }}</strong>.
+            {% endif %}
         </div>
         <p class="card-note">
-            If this appears incorrect, submit a role-change request to Records Administration with a business justification.
+            If this appears incorrect, submit a role-change request to Admin with a business justification.
         </p>
         <div class="button-row" style="margin-top:12px;">
             <a href="{% url 'hrms-root' %}" class="btn secondary">Return to landing page</a>

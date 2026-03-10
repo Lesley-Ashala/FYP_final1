@@ -1,9 +1,11 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db.models import QuerySet
+from django.http import QueryDict
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.shortcuts import redirect
 from django.urls import reverse_lazy
+from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
@@ -142,7 +144,59 @@ class AccessLogListView(RoleRequiredMixin, ListView):
     allowed_roles = (RoleChoices.ADMIN,)
 
     def get_queryset(self):
-        return AccessLog.objects.select_related("user", "patient_record").all()
+        queryset = AccessLog.objects.select_related("user", "patient_record").all()
+
+        user_query = self.request.GET.get("user", "").strip()
+        patient_query = self.request.GET.get("patient", "").strip()
+        action_query = self.request.GET.get("action", "").strip().lower()
+        source_query = self.request.GET.get("source", "").strip().lower()
+        flagged_query = self.request.GET.get("flagged", "").strip().lower()
+        date_from_query = self.request.GET.get("date_from", "").strip()
+        date_to_query = self.request.GET.get("date_to", "").strip()
+
+        if user_query:
+            queryset = queryset.filter(user__username__icontains=user_query)
+        if patient_query:
+            queryset = queryset.filter(patient_record__hospital_id__icontains=patient_query)
+        if action_query:
+            queryset = queryset.filter(action=action_query)
+        if source_query == "live":
+            queryset = queryset.filter(is_simulated=False)
+        elif source_query == "synthetic":
+            queryset = queryset.filter(is_simulated=True)
+        if flagged_query == "yes":
+            queryset = queryset.filter(is_flagged=True)
+        elif flagged_query == "no":
+            queryset = queryset.filter(is_flagged=False)
+
+        date_from = parse_date(date_from_query) if date_from_query else None
+        date_to = parse_date(date_to_query) if date_to_query else None
+        if date_from:
+            queryset = queryset.filter(accessed_at__date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(accessed_at__date__lte=date_to)
+
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["filters"] = {
+            "user": self.request.GET.get("user", "").strip(),
+            "patient": self.request.GET.get("patient", "").strip(),
+            "action": self.request.GET.get("action", "").strip().lower(),
+            "source": self.request.GET.get("source", "").strip().lower(),
+            "flagged": self.request.GET.get("flagged", "").strip().lower(),
+            "date_from": self.request.GET.get("date_from", "").strip(),
+            "date_to": self.request.GET.get("date_to", "").strip(),
+        }
+        context["action_choices"] = AccessLog.AccessAction.choices
+        query_copy = QueryDict(mutable=True)
+        query_copy.update(self.request.GET)
+        if "page" in query_copy:
+            query_copy.pop("page")
+        encoded = query_copy.urlencode()
+        context["page_query"] = f"&{encoded}" if encoded else ""
+        return context
 
 
 class AnomalyListView(RoleRequiredMixin, ListView):
@@ -176,7 +230,18 @@ def _admin_only(user) -> bool:
 @user_passes_test(_admin_only)
 @require_POST
 def run_detection_view(request: HttpRequest) -> HttpResponseRedirect:
-    summary = run_isolation_forest_detection()
+    threshold_raw = request.POST.get("threshold_quantile", "").strip()
+    threshold_quantile = None
+    if threshold_raw:
+        try:
+            threshold_quantile = float(threshold_raw)
+        except ValueError:
+            messages.error(request, "Invalid threshold quantile value.")
+            return redirect("anomaly-list")
+        if not (0.0 < threshold_quantile < 1.0):
+            messages.error(request, "Threshold quantile must be between 0 and 1.")
+            return redirect("anomaly-list")
+    summary = run_isolation_forest_detection(threshold_quantile=threshold_quantile)
     messages.success(
         request,
         (
@@ -200,7 +265,19 @@ def run_evaluation_view(request: HttpRequest) -> HttpResponseRedirect:
         )
         return redirect("evaluation-list")
 
-    result = evaluate_detector(logs)
+    threshold_raw = request.POST.get("threshold_quantile", "").strip()
+    threshold_quantile = None
+    if threshold_raw:
+        try:
+            threshold_quantile = float(threshold_raw)
+        except ValueError:
+            messages.error(request, "Invalid threshold quantile value.")
+            return redirect("evaluation-list")
+        if not (0.0 < threshold_quantile < 1.0):
+            messages.error(request, "Threshold quantile must be between 0 and 1.")
+            return redirect("evaluation-list")
+
+    result = evaluate_detector(logs, threshold_quantile=threshold_quantile)
     messages.success(
         request,
         (

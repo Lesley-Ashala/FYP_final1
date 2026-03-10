@@ -98,7 +98,7 @@
     </article>
 
     <article class="card">
-        <h3 class="card-title">Add Vitals</h3>
+        <h3 class="card-title" id="vitals-form">Add Vitals</h3>
         <p class="card-note">Capture current bedside measurements.</p>
         <form method="post" action="{% url 'hrms-add-vitals' patient.id %}">
             {% csrf_token %}
@@ -116,7 +116,7 @@
             </div>
         </form>
 
-        <h3 class="card-title" style="margin-top:16px;">Add Nursing Note</h3>
+        <h3 class="card-title" style="margin-top:16px;" id="note-form">Add Nursing Note</h3>
         <form method="post" action="{% url 'hrms-add-note' patient.id %}">
             {% csrf_token %}
             <div class="field" style="margin-top:8px;">
