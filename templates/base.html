@@ -6,6 +6,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hospital Access Monitor</title>
     <link rel="stylesheet" href="{% static 'monitoring/css/app.css' %}">
+    <style>
+        .app-nav__dropdown {
+            position: relative;
+        }
+        .app-nav__dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            min-width: 160px;
+            background: #fff;
+            box-shadow: 0 6px 18px rgba(15,23,42,0.18);
+            border-radius: 6px;
+            padding: 4px 0;
+            display: none;
+            z-index: 20;
+        }
+        .app-nav__dropdown:hover .app-nav__dropdown-menu {
+            display: block;
+        }
+        .app-nav__links {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+    </style>
 </head>
 <body class="app-shell">
 
@@ -17,25 +42,92 @@
             <span>Hospital Monitor</span>
         </a>
 
-        <nav class="app-nav__links" aria-label="Main sections">
+        <nav class="app-nav__links" aria-label="Main sections" style="flex:1;justify-content:center;">
+            {% if user.is_authenticated and user_role == "admin" %}
+                <!-- Admin Dashboard -->
+                <a href="{% url 'hrms-admin-dashboard' %}"
+                   class="app-nav__link {% if request.resolver_match.url_name == 'hrms-admin-dashboard' %}app-nav__link--active{% endif %}">
+                    Admin Dashboard
+                </a>
+            {% endif %}
+
+            <!-- Patients -->
             <a href="{% url 'patient-list' %}"
                class="app-nav__link {% if request.resolver_match.url_name == 'patient-list' %}app-nav__link--active{% endif %}">
                 Patients
             </a>
 
             {% if user.is_authenticated and user_role == "admin" %}
-                <a href="{% url 'accesslog-list' %}"
-                   class="app-nav__link {% if request.resolver_match.url_name == 'accesslog-list' %}app-nav__link--active{% endif %}">
-                    Access Logs
-                </a>
+                <!-- Anomalies -->
                 <a href="{% url 'anomaly-list' %}"
                    class="app-nav__link {% if request.resolver_match.url_name == 'anomaly-list' %}app-nav__link--active{% endif %}">
                     Anomalies
                 </a>
-                <a href="{% url 'evaluation-list' %}"
-                   class="app-nav__link {% if request.resolver_match.url_name == 'evaluation-list' %}app-nav__link--active{% endif %}">
-                    Evaluations
+
+                <!-- Evaluations dropdown (with Evaluate option) -->
+                <div class="app-nav__dropdown">
+                    <a href="{% url 'evaluation-list' %}"
+                       class="app-nav__link {% if request.resolver_match.url_name == 'evaluation-list' %}app-nav__link--active{% endif %}">
+                        Evaluations
+                    </a>
+                    <div class="app-nav__dropdown-menu">
+                        <form method="post" action="{% url 'run-evaluation' %}">
+                            {% csrf_token %}
+                            <button type="submit" class="app-nav__link" style="border:none;background:none;padding:4px 10px;">
+                                Evaluate
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Users dropdown (with Roles & Permissions) -->
+                <div class="app-nav__dropdown">
+                    <a href="{% url 'hrms-users' %}"
+                       class="app-nav__link {% if request.resolver_match.url_name == 'hrms-users' %}app-nav__link--active{% endif %}">
+                        Users
+                    </a>
+                    <div class="app-nav__dropdown-menu">
+                        <a href="{% url 'hrms-roles-permissions' %}"
+                           class="app-nav__link {% if request.resolver_match.url_name == 'hrms-roles-permissions' %}app-nav__link--active{% endif %}"
+                           style="padding:4px 10px;">
+                            Roles &amp; Permissions
+                        </a>
+                    </div>
+                </div>
+
+                <!-- System Settings dropdown (with Access Logs, User Flow) -->
+                <div class="app-nav__dropdown">
+                    <a href="{% url 'hrms-system-settings' %}"
+                       class="app-nav__link {% if request.resolver_match.url_name == 'hrms-system-settings' %}app-nav__link--active{% endif %}">
+                        System Settings
+                    </a>
+                    <div class="app-nav__dropdown-menu">
+                        <a href="{% url 'accesslog-list' %}"
+                           class="app-nav__link {% if request.resolver_match.url_name == 'accesslog-list' %}app-nav__link--active{% endif %}"
+                           style="padding:4px 10px;">
+                            Access Logs
+                        </a>
+                        <a href="{% url 'hrms-user-flow' %}"
+                           class="app-nav__link {% if request.resolver_match.url_name == 'hrms-user-flow' %}app-nav__link--active{% endif %}"
+                           style="padding:4px 10px;">
+                            User Flow
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Alerts -->
+                <a href="{% url 'hrms-alerts' %}"
+                   class="app-nav__link {% if request.resolver_match.url_name == 'hrms-alerts' %}app-nav__link--active{% endif %}">
+                    Alerts
                 </a>
+
+                <!-- Investigations -->
+                <a href="{% url 'hrms-investigations' %}"
+                   class="app-nav__link {% if request.resolver_match.url_name == 'hrms-investigations' %}app-nav__link--active{% endif %}">
+                    Investigations
+                </a>
+
+                <!-- Run Detection -->
                 <form method="post" action="{% url 'run-detection' %}" style="display:inline;">
                     {% csrf_token %}
                     <button type="submit" class="app-nav__action-btn">
@@ -43,22 +135,6 @@
                         Run Detection
                     </button>
                 </form>
-                <form method="post" action="{% url 'run-evaluation' %}" style="display:inline;">
-                    {% csrf_token %}
-                    <button type="submit" class="app-nav__action-btn">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-                        Evaluate
-                    </button>
-                </form>
-            {% endif %}
-
-            {% if nav_items %}
-                {% for item in nav_items %}
-                    <a href="{% url item.url_name %}"
-                       class="app-nav__link {% if active_url_name == item.url_name %}app-nav__link--active{% endif %}">
-                        {{ item.label }}
-                    </a>
-                {% endfor %}
             {% endif %}
         </nav>
 
