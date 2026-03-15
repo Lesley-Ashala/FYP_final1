@@ -1,9 +1,12 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="card" style="max-width:420px; margin: 2rem auto;">
-    <h2>Login</h2>
-    <p class="meta">Use seeded accounts like <code>doctor_amy</code> / <code>Hospital123!</code>.</p>
+<header class="page-header" style="text-align:center;">
+    <h1 class="page-title">Sign in to Hospital Monitor</h1>
+    <p class="page-meta">Use seeded accounts like <span>doctor_amy / Hospital123!</span>.</p>
+</header>
+
+<div class="card" style="max-width:420px; margin: 0 auto;">
     <form method="post">
         {% csrf_token %}
         {{ form.as_p }}

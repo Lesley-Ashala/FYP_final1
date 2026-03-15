@@ -1,4 +1,4 @@
-{% extends "hrms/base_shell.html" %}
+{% extends "base.html" %}
 
 {% block content %}
 <section class="card">
@@ -91,8 +91,8 @@
 
 {% for patient in patients %}
 <div class="modal-backdrop" id="access-reason-modal-{{ patient.pk }}">
-    <div class="modal">
-        <h3>Reason for access required</h3>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="access-reason-title-{{ patient.pk }}">
+        <h3 id="access-reason-title-{{ patient.pk }}">Reason for access required</h3>
         <p>Select a valid reason before opening the patient chart.</p>
         <form method="post" action="{% url 'hrms-open-patient-record' patient.pk %}">
             {% csrf_token %}

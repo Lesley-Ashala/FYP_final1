@@ -2,32 +2,51 @@
 
 {% block content %}
 <h2 class="auth-title">Sign in to Secure Records</h2>
-<p class="auth-subtitle">Use your staff credentials to access role-based hospital records.</p>
+<p class="auth-subtitle">Zero-trust access to hospital records, tailored to your role.</p>
 
 {% if error %}
-    <div class="notice error">{{ error }}</div>
+    <div class="notice-banner error">{{ error }}</div>
+{% else %}
+    <div class="notice-banner">
+        Use seeded demo accounts like <strong>ADM-0192</strong>, <strong>NUR-1142</strong>, or <strong>DOC-0458</strong> with their default passwords.
+    </div>
 {% endif %}
 
 <form method="post" autocomplete="off">
     {% csrf_token %}
     <div class="field">
         <label for="staff_id">Staff ID / Email</label>
-        <input class="input" id="staff_id" name="staff_id" placeholder="e.g., NUR-1142 or name@hospital.local" autocomplete="off" autocapitalize="none" spellcheck="false">
+        <input class="input" id="staff_id" name="staff_id" placeholder="e.g., ADM-0192 or name@hospital.local" autocomplete="off" autocapitalize="none" spellcheck="false" required>
     </div>
 
     <div class="field">
         <label for="password">Password</label>
-        <input class="input" id="password" name="password" type="password" placeholder="Enter password" autocomplete="new-password">
+        <input class="input" id="password" name="password" type="password" placeholder="Enter password" autocomplete="current-password" required>
     </div>
 
     <div class="row">
         <label class="checkbox">
             <input type="checkbox" name="remember_me">
-            Remember me
+            Remember this device for this session
         </label>
         <a class="link" href="#">Forgot password?</a>
     </div>
 
     <button class="btn" type="submit">Sign in</button>
 </form>
+
+<div class="state-grid">
+    <div class="state-item">
+        <strong>Admin (ADM-0192)</strong><br>
+        Full access to user management, audit logs, anomaly detection, and alert triage.
+    </div>
+    <div class="state-item">
+        <strong>Nurse (NUR-1142)</strong><br>
+        Bedside workflows for vitals, nursing notes, and shift handover with access reasons.
+    </div>
+    <div class="state-item">
+        <strong>Doctor (DOC-0458)</strong><br>
+        Clinician-focused record access, diagnosis updates, and clinical review of anomalies.
+    </div>
+</div>
 {% endblock %}

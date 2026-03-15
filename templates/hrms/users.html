@@ -1,4 +1,4 @@
-{% extends "hrms/base_shell.html" %}
+{% extends "base.html" %}
 
 {% block content %}
 <section class="card">
@@ -12,7 +12,7 @@
         </div>
     </div>
 
-    <div class="table-wrap">
+    <div class="table-wrap" role="region" aria-label="User directory">
         <table>
             <thead>
                 <tr>
@@ -69,8 +69,8 @@
 </section>
 
 <div class="modal-backdrop" id="create-user-modal">
-    <div class="modal">
-        <h3>Create user</h3>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="create-user-title">
+        <h3 id="create-user-title">Create user</h3>
         <p>New account will receive temporary credentials and role-based access permissions.</p>
         <form method="post" action="{% url 'hrms-user-create' %}">
             {% csrf_token %}
@@ -118,8 +118,8 @@
 
 {% for user in users %}
     <div class="modal-backdrop" id="disable-user-modal-{{ user.id }}">
-        <div class="modal">
-            <h3>Disable user account</h3>
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="disable-user-title-{{ user.id }}">
+            <h3 id="disable-user-title-{{ user.id }}">Disable user account</h3>
             <p>Confirm disabling {{ user.staff_id }}. Active sessions will be terminated immediately.</p>
             <form method="post" action="{% url 'hrms-user-disable' user.id %}">
                 {% csrf_token %}

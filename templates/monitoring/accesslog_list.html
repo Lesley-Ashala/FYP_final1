@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="card">
-    <h2>All Access Logs</h2>
-    <p class="meta">Every patient record access event is logged automatically.</p>
-</div>
+<header class="page-header">
+    <h1 class="page-title">All Access Logs</h1>
+    <p class="page-meta">Every patient record access event is logged automatically.</p>
+</header>
 
 <div class="card">
     <form method="get">
@@ -59,6 +59,7 @@
 </div>
 
 <div class="card">
+    <div class="table-wrap" role="region" aria-label="Access log entries">
     <table>
         <thead>
             <tr>
@@ -103,6 +104,7 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
 </div>
 
 {% if is_paginated %}

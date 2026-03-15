@@ -1,8 +1,13 @@
 {% extends "base.html" %}
 
 {% block content %}
+<header class="page-header">
+    <h1 class="page-title">Patient: {{ patient.full_name }}</h1>
+    <p class="page-meta">Hospital ID {{ patient.hospital_id }}</p>
+</header>
+
 <div class="card">
-    <h2>Patient: {{ patient.full_name }}</h2>
+    <div class="table-wrap" role="region" aria-label="Patient details">
     <table>
         <tbody>
             <tr><th>Hospital ID</th><td>{{ patient.hospital_id }}</td></tr>
@@ -13,6 +18,7 @@
             <tr><th>Updated At</th><td>{{ patient.updated_at }}</td></tr>
         </tbody>
     </table>
+    </div>
     <p style="margin-top:1rem;">
         <a class="btn btn-secondary" href="{% url 'patient-list' %}">Back</a>
         {% if user_role == "doctor" or user_role == "admin" %}

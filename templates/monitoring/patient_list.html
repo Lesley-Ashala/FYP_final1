@@ -1,16 +1,19 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="card">
-    <h2>Patient Records</h2>
-    <p class="meta">Total logs: {{ total_access_logs }} | Flagged anomalies: {{ flagged_logs }}</p>
-    {% if user_role == "doctor" or user_role == "admin" %}
-        <p><a class="btn" href="{% url 'patient-create' %}">Create Patient Record</a></p>
-    {% endif %}
-</div>
+<header class="page-header">
+    <h1 class="page-title">Patient Records</h1>
+    <p class="page-meta">Total logs: {{ total_access_logs }} · Flagged anomalies: {{ flagged_logs }}</p>
+</header>
 
 <div class="card">
-    <table>
+    {% if user_role == "doctor" or user_role == "admin" %}
+        <div class="button-row" style="margin-bottom:0.25rem;">
+            <a class="btn" href="{% url 'patient-create' %}">Create Patient Record</a>
+        </div>
+    {% endif %}
+    <div class="table-wrap" role="region" aria-label="Patient records">
+        <table>
         <thead>
             <tr>
                 <th>Hospital ID</th>
@@ -43,7 +46,8 @@
                 <tr><td colspan="6">No patient records yet.</td></tr>
             {% endfor %}
         </tbody>
-    </table>
+        </table>
+    </div>
 </div>
 
 {% if is_paginated %}

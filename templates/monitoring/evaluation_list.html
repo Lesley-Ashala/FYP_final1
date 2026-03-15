@@ -1,14 +1,15 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="card">
-    <h2>Evaluation Results</h2>
-    <p class="meta">
+<header class="page-header">
+    <h1 class="page-title">Evaluation Results</h1>
+    <p class="page-meta">
         Metrics: Precision, Recall, False Positive Rate, Anomaly Detection Rate, and Execution Time.
     </p>
-</div>
+</header>
 
 <div class="card">
+    <div class="table-wrap" role="region" aria-label="Model evaluation runs">
     <table>
         <thead>
             <tr>
@@ -41,6 +42,7 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
 </div>
 
 {% if is_paginated %}

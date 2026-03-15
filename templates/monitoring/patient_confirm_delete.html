@@ -1,8 +1,12 @@
 {% extends "base.html" %}
 
 {% block content %}
+<header class="page-header">
+    <h1 class="page-title">Delete Patient Record</h1>
+    <p class="page-meta">This action is irreversible and will be fully audited.</p>
+</header>
+
 <div class="card">
-    <h2>Delete Patient Record</h2>
     <p>Are you sure you want to delete <strong>{{ object.full_name }}</strong> ({{ object.hospital_id }})?</p>
     <form method="post">
         {% csrf_token %}

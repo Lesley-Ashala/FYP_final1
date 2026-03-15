@@ -1,12 +1,13 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="card">
-    <h2>Flagged Anomalies</h2>
-    <p class="meta">Events classified as abnormal by Isolation Forest.</p>
-</div>
+<header class="page-header">
+    <h1 class="page-title">Flagged Anomalies</h1>
+    <p class="page-meta">Events classified as abnormal by Isolation Forest.</p>
+</header>
 
 <div class="card">
+    <div class="table-wrap" role="region" aria-label="Flagged anomaly access events">
     <table>
         <thead>
             <tr>
@@ -43,6 +44,7 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
 </div>
 
 {% if is_paginated %}

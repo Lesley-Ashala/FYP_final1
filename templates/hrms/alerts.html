@@ -1,4 +1,4 @@
-{% extends "hrms/base_shell.html" %}
+{% extends "base.html" %}
 
 {% block content %}
 <section class="card" style="margin-bottom:14px;">
@@ -35,7 +35,7 @@
             </div>
             <a class="btn secondary" href="{% url 'hrms-alerts' %}">Reset</a>
         </div>
-        <div class="table-wrap">
+        <div class="table-wrap" role="region" aria-label="Alert queue">
             <table>
                 <thead>
                     <tr>
@@ -120,8 +120,8 @@
 
 {% if selected_alert %}
 <div class="modal-backdrop" id="close-alert-modal">
-    <div class="modal">
-        <h3>Close alert ALT-{{ selected_alert.id|stringformat:"05d" }}</h3>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="close-alert-title">
+        <h3 id="close-alert-title">Close alert ALT-{{ selected_alert.id|stringformat:"05d" }}</h3>
         <p>Confirm closure and provide disposition summary for audit compliance.</p>
         <form method="post" action="{% url 'hrms-close-alert' selected_alert.id %}">
             {% csrf_token %}

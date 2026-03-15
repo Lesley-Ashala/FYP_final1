@@ -1,67 +1,65 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hospital Access Monitor</title>
-    <style>
-        body { font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #f4f6f8; }
-        nav { background: #0d3b66; color: #fff; padding: 0.75rem 1rem; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
-        nav a, nav button { color: #fff; text-decoration: none; border: none; background: transparent; cursor: pointer; font-size: 0.95rem; }
-        nav form { margin: 0; }
-        .container { max-width: 1200px; margin: 1rem auto; padding: 0 1rem 2rem; }
-        .card { background: #fff; border: 1px solid #d7dde4; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { border: 1px solid #d7dde4; padding: 0.55rem; text-align: left; font-size: 0.93rem; }
-        th { background: #eef3f8; }
-        .btn { display: inline-block; background: #1f6feb; color: #fff; padding: 0.4rem 0.7rem; border-radius: 6px; text-decoration: none; border: none; cursor: pointer; }
-        .btn-danger { background: #b42318; }
-        .btn-secondary { background: #4b5563; }
-        .messages { list-style: none; padding: 0; margin: 0 0 1rem; }
-        .messages li { padding: 0.6rem; border-radius: 6px; margin-bottom: 0.5rem; }
-        .messages .success { background: #dcfce7; color: #14532d; }
-        .messages .error { background: #fee2e2; color: #7f1d1d; }
-        .messages .warning { background: #fef3c7; color: #78350f; }
-        .meta { color: #4b5563; font-size: 0.9rem; }
-        .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-        input, select, textarea { width: 100%; padding: 0.45rem; border: 1px solid #c6ccd3; border-radius: 6px; margin-top: 0.2rem; margin-bottom: 0.8rem; box-sizing: border-box; }
-        label { font-weight: 600; }
-    </style>
+    <link rel="stylesheet" href="{% static 'monitoring/css/app.css' %}">
 </head>
-<body>
-    <nav>
-        <a href="{% url 'patient-list' %}">Patients</a>
-        {% if user.is_authenticated and user_role == "admin" %}
-            <a href="{% url 'accesslog-list' %}">Access Logs</a>
-            <a href="{% url 'anomaly-list' %}">Flagged Anomalies</a>
-            <a href="{% url 'evaluation-list' %}">Evaluation Results</a>
-            <form method="post" action="{% url 'run-detection' %}">
-                {% csrf_token %}
-                <button type="submit">Run Detection</button>
-            </form>
-            <form method="post" action="{% url 'run-evaluation' %}">
-                {% csrf_token %}
-                <button type="submit">Run Evaluation</button>
-            </form>
-        {% endif %}
-        <span style="margin-left:auto;">
-            {% if user.is_authenticated %}
-                {{ user.username }} ({{ user_role }}) |
-                <a href="{% url 'logout' %}">Logout</a>
-            {% else %}
-                <a href="{% url 'login' %}">Login</a>
+<body class="app-shell">
+    <header class="app-nav" role="navigation" aria-label="Primary">
+        <div class="app-nav__brand">
+            <span class="app-nav__brand-mark">HM</span>
+            <span>Hospital Monitor</span>
+        </div>
+        <nav class="app-nav__links" aria-label="Main sections">
+            <a href="{% url 'patient-list' %}" class="app-nav__link">Patients</a>
+            {% if user.is_authenticated and user_role == "admin" %}
+                <a href="{% url 'accesslog-list' %}" class="app-nav__link {% if request.resolver_match.url_name == 'accesslog-list' %}app-nav__link--active{% endif %}">Access Logs</a>
+                <a href="{% url 'anomaly-list' %}" class="app-nav__link {% if request.resolver_match.url_name == 'anomaly-list' %}app-nav__link--active{% endif %}">Flagged Anomalies</a>
+                <a href="{% url 'evaluation-list' %}" class="app-nav__link {% if request.resolver_match.url_name == 'evaluation-list' %}app-nav__link--active{% endif %}">Evaluation Results</a>
+                <form method="post" action="{% url 'run-detection' %}" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="app-nav__action-btn">Run Detection</button>
+                </form>
+                <form method="post" action="{% url 'run-evaluation' %}" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="app-nav__action-btn">Run Evaluation</button>
+                </form>
             {% endif %}
-        </span>
-    </nav>
-    <div class="container">
+
+            {# HRMS navigation items (formerly in the sidebar), shown when provided in context #}
+            {% if nav_items %}
+                {% for item in nav_items %}
+                    <a href="{% url item.url_name %}"
+                       class="app-nav__link {% if active_url_name == item.url_name %}app-nav__link--active{% endif %}">
+                        {{ item.label }}
+                    </a>
+                {% endfor %}
+            {% endif %}
+        </nav>
+        <div class="app-nav__spacer">
+            <span class="app-nav__user">
+                {% if user.is_authenticated %}
+                    <strong>{{ user.username }}</strong> ({{ user_role }})
+                    
+                    <a href="{% url 'logout' %}" class="app-nav__link">Logout</a>
+                {% else %}
+                    <a href="{% url 'login' %}" class="app-nav__link">Login</a>
+                {% endif %}
+            </span>
+        </div>
+    </header>
+    <main class="app-container">
         {% if messages %}
-            <ul class="messages">
+            <ul class="messages" role="status" aria-live="polite">
                 {% for message in messages %}
                     <li class="{{ message.tags }}">{{ message }}</li>
                 {% endfor %}
             </ul>
         {% endif %}
         {% block content %}{% endblock %}
-    </div>
+    </main>
 </body>
 </html>

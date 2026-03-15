@@ -1,8 +1,12 @@
 {% extends "base.html" %}
 
 {% block content %}
+<header class="page-header">
+    <h1 class="page-title">{% if object %}Edit Patient Record{% else %}Create Patient Record{% endif %}</h1>
+    <p class="page-meta">All changes are logged and monitored for anomalous activity.</p>
+</header>
+
 <div class="card">
-    <h2>{% if object %}Edit Patient Record{% else %}Create Patient Record{% endif %}</h2>
     <form method="post">
         {% csrf_token %}
         {{ form.as_p }}

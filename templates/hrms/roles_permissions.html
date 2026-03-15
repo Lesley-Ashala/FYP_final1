@@ -1,4 +1,4 @@
-{% extends "hrms/base_shell.html" %}
+{% extends "base.html" %}
 
 {% block content %}
 <form method="post" action="{% url 'hrms-save-permissions' %}">
@@ -40,7 +40,7 @@
                 <p class="card-note">Checkbox grid representation of current role-policy assignments.</p>
             </div>
         </div>
-        <div class="table-wrap">
+        <div class="table-wrap" role="region" aria-label="Permissions matrix">
             <table>
                 <thead>
                     <tr>
