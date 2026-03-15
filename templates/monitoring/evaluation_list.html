@@ -1,59 +1,94 @@
 {% extends "base.html" %}
 
 {% block content %}
-<header class="page-header">
-    <h1 class="page-title">Evaluation Results</h1>
-    <p class="page-meta">
-        Metrics: Precision, Recall, False Positive Rate, Anomaly Detection Rate, and Execution Time.
-    </p>
-</header>
 
-<div class="card">
+<div class="page-header">
+    <div class="page-header-left">
+        <h1 class="page-title">Evaluation Results</h1>
+        <p class="page-meta">Isolation Forest model performance metrics: Precision, Recall, FPR, ADR, and Execution Time.</p>
+    </div>
+</div>
+
+<div class="card" style="padding:0;overflow:hidden;">
     <div class="table-wrap" role="region" aria-label="Model evaluation runs">
-    <table>
-        <thead>
-            <tr>
-                <th>Created At</th>
-                <th>Dataset Size</th>
-                <th>True Anomalies</th>
-                <th>Predicted Anomalies</th>
-                <th>Precision</th>
-                <th>Recall</th>
-                <th>False Positive Rate</th>
-                <th>Anomaly Detection Rate</th>
-                <th>Execution Time (ms)</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in evaluations %}
-            <tr>
-                <td>{{ item.created_at }}</td>
-                <td>{{ item.dataset_size }}</td>
-                <td>{{ item.true_anomalies }}</td>
-                <td>{{ item.predicted_anomalies }}</td>
-                <td>{{ item.precision|floatformat:4 }}</td>
-                <td>{{ item.recall|floatformat:4 }}</td>
-                <td>{{ item.false_positive_rate|floatformat:4 }}</td>
-                <td>{{ item.anomaly_detection_rate|floatformat:4 }}</td>
-                <td>{{ item.execution_time_ms|floatformat:2 }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="9">No evaluation runs yet.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+        <table>
+            <thead>
+                <tr>
+                    <th>Created At</th>
+                    <th>Dataset Size</th>
+                    <th>True Anomalies</th>
+                    <th>Predicted</th>
+                    <th>Precision</th>
+                    <th>Recall</th>
+                    <th>False Positive Rate</th>
+                    <th>Detection Rate</th>
+                    <th>Exec. Time (ms)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in evaluations %}
+                <tr>
+                    <td style="font-family:var(--font-mono);font-size:0.76rem;color:var(--gray-500);">{{ item.created_at }}</td>
+                    <td style="font-weight:600;">{{ item.dataset_size }}</td>
+                    <td>{{ item.true_anomalies }}</td>
+                    <td>{{ item.predicted_anomalies }}</td>
+                    <td>
+                        {% if item.precision > 0.8 %}
+                        <span style="font-family:var(--font-mono);font-size:0.8rem;color:var(--success-500);font-weight:700;">
+                        {% elif item.precision > 0.5 %}
+                        <span style="font-family:var(--font-mono);font-size:0.8rem;color:var(--warning-500);">
+                        {% else %}
+                        <span style="font-family:var(--font-mono);font-size:0.8rem;color:var(--danger-500);">
+                        {% endif %}
+                            {{ item.precision|floatformat:4 }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if item.recall > 0.8 %}
+                        <span style="font-family:var(--font-mono);font-size:0.8rem;color:var(--success-500);font-weight:700;">
+                        {% elif item.recall > 0.5 %}
+                        <span style="font-family:var(--font-mono);font-size:0.8rem;color:var(--warning-500);">
+                        {% else %}
+                        <span style="font-family:var(--font-mono);font-size:0.8rem;color:var(--danger-500);">
+                        {% endif %}
+                            {{ item.recall|floatformat:4 }}
+                        </span>
+                    </td>
+                    <td style="font-family:var(--font-mono);font-size:0.8rem;">{{ item.false_positive_rate|floatformat:4 }}</td>
+                    <td style="font-family:var(--font-mono);font-size:0.8rem;">{{ item.anomaly_detection_rate|floatformat:4 }}</td>
+                    <td style="font-family:var(--font-mono);font-size:0.8rem;color:var(--gray-500);">{{ item.execution_time_ms|floatformat:2 }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9">
+                        <div class="empty-state" style="margin:8px;">
+                            <h4>No evaluation runs yet</h4>
+                            <p>Click "Evaluate Model" from the admin dashboard to generate metrics.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
 
 {% if is_paginated %}
-<div class="card">
+<div class="pagination">
     {% if page_obj.has_previous %}
-        <a class="btn btn-secondary" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+        <a class="btn btn-secondary btn-sm" href="?page={{ page_obj.previous_page_number }}">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+            Previous
+        </a>
     {% endif %}
-    <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    <span style="font-size:0.82rem;color:var(--gray-500);">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
     {% if page_obj.has_next %}
-        <a class="btn btn-secondary" href="?page={{ page_obj.next_page_number }}">Next</a>
+        <a class="btn btn-secondary btn-sm" href="?page={{ page_obj.next_page_number }}">
+            Next
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+        </a>
     {% endif %}
 </div>
 {% endif %}
+
 {% endblock %}

@@ -8,28 +8,50 @@
     <link rel="stylesheet" href="{% static 'monitoring/css/app.css' %}">
 </head>
 <body class="app-shell">
-    <header class="app-nav" role="navigation" aria-label="Primary">
-        <div class="app-nav__brand">
-            <span class="app-nav__brand-mark">HM</span>
+
+    <!-- ── Top Navigation ── -->
+    <header class="app-nav" role="navigation" aria-label="Primary navigation">
+
+        <a href="{% url 'patient-list' %}" class="app-nav__brand">
+            <span class="app-nav__brand-mark">HSR</span>
             <span>Hospital Monitor</span>
-        </div>
+        </a>
+
         <nav class="app-nav__links" aria-label="Main sections">
-            <a href="{% url 'patient-list' %}" class="app-nav__link">Patients</a>
+            <a href="{% url 'patient-list' %}"
+               class="app-nav__link {% if request.resolver_match.url_name == 'patient-list' %}app-nav__link--active{% endif %}">
+                Patients
+            </a>
+
             {% if user.is_authenticated and user_role == "admin" %}
-                <a href="{% url 'accesslog-list' %}" class="app-nav__link {% if request.resolver_match.url_name == 'accesslog-list' %}app-nav__link--active{% endif %}">Access Logs</a>
-                <a href="{% url 'anomaly-list' %}" class="app-nav__link {% if request.resolver_match.url_name == 'anomaly-list' %}app-nav__link--active{% endif %}">Flagged Anomalies</a>
-                <a href="{% url 'evaluation-list' %}" class="app-nav__link {% if request.resolver_match.url_name == 'evaluation-list' %}app-nav__link--active{% endif %}">Evaluation Results</a>
+                <a href="{% url 'accesslog-list' %}"
+                   class="app-nav__link {% if request.resolver_match.url_name == 'accesslog-list' %}app-nav__link--active{% endif %}">
+                    Access Logs
+                </a>
+                <a href="{% url 'anomaly-list' %}"
+                   class="app-nav__link {% if request.resolver_match.url_name == 'anomaly-list' %}app-nav__link--active{% endif %}">
+                    Anomalies
+                </a>
+                <a href="{% url 'evaluation-list' %}"
+                   class="app-nav__link {% if request.resolver_match.url_name == 'evaluation-list' %}app-nav__link--active{% endif %}">
+                    Evaluations
+                </a>
                 <form method="post" action="{% url 'run-detection' %}" style="display:inline;">
                     {% csrf_token %}
-                    <button type="submit" class="app-nav__action-btn">Run Detection</button>
+                    <button type="submit" class="app-nav__action-btn">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        Run Detection
+                    </button>
                 </form>
                 <form method="post" action="{% url 'run-evaluation' %}" style="display:inline;">
                     {% csrf_token %}
-                    <button type="submit" class="app-nav__action-btn">Run Evaluation</button>
+                    <button type="submit" class="app-nav__action-btn">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                        Evaluate
+                    </button>
                 </form>
             {% endif %}
 
-            {# HRMS navigation items (formerly in the sidebar), shown when provided in context #}
             {% if nav_items %}
                 {% for item in nav_items %}
                     <a href="{% url item.url_name %}"
@@ -39,19 +61,23 @@
                 {% endfor %}
             {% endif %}
         </nav>
+
         <div class="app-nav__spacer">
-            <span class="app-nav__user">
+            <div class="app-nav__user">
                 {% if user.is_authenticated %}
-                    <strong>{{ user.username }}</strong> ({{ user_role }})
-                    
-                    <a href="{% url 'logout' %}" class="app-nav__link">Logout</a>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:0.5"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>
+                    <strong>{{ user.username }}</strong>
+                    <span class="badge {% if user_role == 'admin' %}success{% elif user_role == 'doctor' %}info{% else %}medium{% endif %}" style="font-size:0.64rem;">{{ user_role }}</span>
+                    <a href="{% url 'logout' %}" class="app-nav__link" style="margin-left:4px;">Log out</a>
                 {% else %}
-                    <a href="{% url 'login' %}" class="app-nav__link">Login</a>
+                    <a href="{% url 'login' %}" class="app-nav__link">Sign in</a>
                 {% endif %}
-            </span>
+            </div>
         </div>
     </header>
-    <main class="app-container">
+
+    <!-- ── Page content ── -->
+    <main class="app-container" role="main">
         {% if messages %}
             <ul class="messages" role="status" aria-live="polite">
                 {% for message in messages %}
@@ -61,5 +87,6 @@
         {% endif %}
         {% block content %}{% endblock %}
     </main>
+
 </body>
 </html>

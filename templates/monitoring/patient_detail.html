@@ -1,32 +1,71 @@
 {% extends "base.html" %}
 
 {% block content %}
-<header class="page-header">
-    <h1 class="page-title">Patient: {{ patient.full_name }}</h1>
-    <p class="page-meta">Hospital ID {{ patient.hospital_id }}</p>
-</header>
 
-<div class="card">
-    <div class="table-wrap" role="region" aria-label="Patient details">
-    <table>
-        <tbody>
-            <tr><th>Hospital ID</th><td>{{ patient.hospital_id }}</td></tr>
-            <tr><th>Date of Birth</th><td>{{ patient.date_of_birth }}</td></tr>
-            <tr><th>Diagnosis</th><td>{{ patient.diagnosis }}</td></tr>
-            <tr><th>Notes</th><td>{{ patient.notes|linebreaksbr|default:"-" }}</td></tr>
-            <tr><th>Attending Doctor</th><td>{{ patient.attending_doctor|default:"-" }}</td></tr>
-            <tr><th>Updated At</th><td>{{ patient.updated_at }}</td></tr>
-        </tbody>
-    </table>
+<div class="page-header">
+    <div class="page-header-left">
+        <h1 class="page-title">{{ patient.full_name }}</h1>
+        <p class="page-meta">Hospital ID: <span style="font-family:var(--font-mono);">{{ patient.hospital_id }}</span></p>
     </div>
-    <p style="margin-top:1rem;">
-        <a class="btn btn-secondary" href="{% url 'patient-list' %}">Back</a>
+    <div class="button-row">
         {% if user_role == "doctor" or user_role == "admin" %}
-            <a class="btn" href="{% url 'patient-update' patient.pk %}">Edit</a>
+            <a class="btn" href="{% url 'patient-update' patient.pk %}">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                Edit Record
+            </a>
         {% endif %}
         {% if user_role == "admin" %}
             <a class="btn btn-danger" href="{% url 'patient-delete' patient.pk %}">Delete</a>
         {% endif %}
-    </p>
+        <a class="btn btn-secondary" href="{% url 'patient-list' %}">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+            Back
+        </a>
+    </div>
 </div>
+
+<div class="grid two">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Patient Information</h3>
+            <span class="badge info">Record</span>
+        </div>
+        <div class="table-wrap" style="border:none;">
+            <table style="min-width:0;">
+                <tbody>
+                    <tr>
+                        <th style="width:38%;background:transparent;font-size:0.76rem;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.05em;padding:8px 10px;">Hospital ID</th>
+                        <td style="font-family:var(--font-mono);font-weight:600;color:var(--gray-800);">{{ patient.hospital_id }}</td>
+                    </tr>
+                    <tr>
+                        <th style="background:transparent;font-size:0.76rem;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.05em;padding:8px 10px;">Date of Birth</th>
+                        <td>{{ patient.date_of_birth }}</td>
+                    </tr>
+                    <tr>
+                        <th style="background:transparent;font-size:0.76rem;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.05em;padding:8px 10px;">Diagnosis</th>
+                        <td>{{ patient.diagnosis }}</td>
+                    </tr>
+                    <tr>
+                        <th style="background:transparent;font-size:0.76rem;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.05em;padding:8px 10px;">Attending Doctor</th>
+                        <td>{{ patient.attending_doctor|default:"—" }}</td>
+                    </tr>
+                    <tr>
+                        <th style="background:transparent;font-size:0.76rem;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.05em;padding:8px 10px;">Last Updated</th>
+                        <td>{{ patient.updated_at }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Clinical Notes</h3>
+        </div>
+        <div style="font-size:0.84rem;color:var(--gray-600);line-height:1.65;min-height:80px;">
+            {{ patient.notes|linebreaksbr|default:"No notes on file." }}
+        </div>
+    </div>
+</div>
+
 {% endblock %}

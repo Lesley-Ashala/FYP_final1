@@ -1,46 +1,88 @@
 {% extends "base.html" %}
 
 {% block content %}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1 class="page-title">System Settings</h1>
+        <p class="page-meta">Security policy configuration. Changes propagate within 60 seconds and are logged.</p>
+    </div>
+</div>
+
 <form method="post" action="{% url 'hrms-save-system-settings' %}">
     {% csrf_token %}
-    <section class="grid three">
+
+    <div class="grid three" style="margin-bottom:14px;">
+
+        <!-- Password Policy -->
         <article class="card">
-            <h3 class="card-title">Password Policy</h3>
-            <div class="field" style="margin-top:10px;">
+            <div class="card-header">
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <div style="width:32px;height:32px;border-radius:var(--r-md);background:var(--brand-50);border:1px solid var(--brand-200);display:grid;place-items:center;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--brand-600)" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    </div>
+                    <h3 class="card-title">Password Policy</h3>
+                </div>
+            </div>
+
+            <div class="field">
                 <label>Minimum length</label>
-                <input class="input" name="password_min_length" value="{{ settings.password_min_length }}">
+                <input name="password_min_length" value="{{ settings.password_min_length }}"
+                       type="number" min="8" max="32" placeholder="12">
             </div>
             <div class="field">
                 <label>Rotation interval</label>
-                <select class="select" name="password_rotation_days">
+                <select name="password_rotation_days">
                     <option value="90" {% if settings.password_rotation_days == "90" %}selected{% endif %}>Every 90 days</option>
                     <option value="60" {% if settings.password_rotation_days == "60" %}selected{% endif %}>Every 60 days</option>
                     <option value="30" {% if settings.password_rotation_days == "30" %}selected{% endif %}>Every 30 days</option>
                 </select>
             </div>
             <label class="checkbox">
-                <input type="checkbox" name="require_complex_password" {% if settings.require_complex_password == "true" %}checked{% endif %}>
-                Require uppercase, lowercase, number, and symbol
+                <input type="checkbox" name="require_complex_password"
+                       {% if settings.require_complex_password == "true" %}checked{% endif %}>
+                Require uppercase, lowercase, number &amp; symbol
             </label>
         </article>
 
+        <!-- Session Policy -->
         <article class="card">
-            <h3 class="card-title">Session Policy</h3>
+            <div class="card-header">
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <div style="width:32px;height:32px;border-radius:var(--r-md);background:var(--info-50);border:1px solid var(--info-200);display:grid;place-items:center;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--info-500)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    </div>
+                    <h3 class="card-title">Session Policy</h3>
+                </div>
+            </div>
+
             <div class="field" style="margin-top:10px;">
                 <label>Session timeout (minutes)</label>
-                <input class="input" name="session_timeout_minutes" value="{{ settings.session_timeout_minutes }}">
+                <input name="session_timeout_minutes" value="{{ settings.session_timeout_minutes }}"
+                       type="number" min="5" max="480" placeholder="30">
             </div>
             <label class="checkbox">
-                <input type="checkbox" name="allow_trusted_device_bypass" {% if settings.allow_trusted_device_bypass == "true" %}checked{% endif %}>
-                Allow trusted device bypass (not recommended)
+                <input type="checkbox" name="allow_trusted_device_bypass"
+                       {% if settings.allow_trusted_device_bypass == "true" %}checked{% endif %}>
+                Allow trusted device bypass
             </label>
+            <p class="helper" style="margin-top:6px;">Not recommended for clinical environments.</p>
         </article>
 
+        <!-- Data Retention -->
         <article class="card">
-            <h3 class="card-title">Data Retention & Export</h3>
+            <div class="card-header">
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <div style="width:32px;height:32px;border-radius:var(--r-md);background:var(--warning-50);border:1px solid var(--warning-200);display:grid;place-items:center;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--warning-500)" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                    </div>
+                    <h3 class="card-title">Data Retention &amp; Export</h3>
+                </div>
+            </div>
+
             <div class="field" style="margin-top:10px;">
                 <label>Audit retention period</label>
-                <select class="select" name="audit_retention_years">
+                <select name="audit_retention_years">
                     <option value="7" {% if settings.audit_retention_years == "7" %}selected{% endif %}>7 years</option>
                     <option value="5" {% if settings.audit_retention_years == "5" %}selected{% endif %}>5 years</option>
                     <option value="3" {% if settings.audit_retention_years == "3" %}selected{% endif %}>3 years</option>
@@ -48,26 +90,32 @@
             </div>
             <div class="field">
                 <label>Export format</label>
-                <select class="select" name="audit_export_format">
+                <select name="audit_export_format">
                     <option value="csv_hash_manifest" {% if settings.audit_export_format == "csv_hash_manifest" %}selected{% endif %}>CSV + hash manifest</option>
-                    <option value="csv" {% if settings.audit_export_format == "csv" %}selected{% endif %}>CSV</option>
+                    <option value="csv" {% if settings.audit_export_format == "csv" %}selected{% endif %}>CSV only</option>
                 </select>
             </div>
             <label class="checkbox">
-                <input type="checkbox" name="require_export_reason" {% if settings.require_export_reason == "true" %}checked{% endif %}>
+                <input type="checkbox" name="require_export_reason"
+                       {% if settings.require_export_reason == "true" %}checked{% endif %}>
                 Require reason for audit export
             </label>
         </article>
-    </section>
+    </div>
 
-    <section class="card" style="margin-top:14px;">
-        <div class="notice warning">
+    <section class="card">
+        <div class="notice warning" style="margin-bottom:14px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:5px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
             Changes to security settings propagate within 60 seconds and are logged under system policy events.
         </div>
         <div class="button-row">
-            <button class="btn" type="submit">Save Settings</button>
-            <a class="btn secondary" href="{% url 'hrms-system-settings' %}">Cancel</a>
+            <button class="btn" type="submit">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>
+                Save Settings
+            </button>
+            <a class="btn btn-secondary" href="{% url 'hrms-system-settings' %}">Cancel</a>
         </div>
     </section>
 </form>
+
 {% endblock %}

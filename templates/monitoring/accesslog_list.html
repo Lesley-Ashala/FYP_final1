@@ -1,121 +1,169 @@
 {% extends "base.html" %}
 
 {% block content %}
-<header class="page-header">
-    <h1 class="page-title">All Access Logs</h1>
-    <p class="page-meta">Every patient record access event is logged automatically.</p>
-</header>
 
+<div class="page-header">
+    <div class="page-header-left">
+        <h1 class="page-title">Access Logs</h1>
+        <p class="page-meta">Every patient record access event is logged automatically and immutably.</p>
+    </div>
+</div>
+
+<!-- Filter card -->
 <div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Filter Logs</h3>
+        <a href="{% url 'accesslog-list' %}" class="btn btn-secondary btn-sm">Reset filters</a>
+    </div>
     <form method="get">
-        <div style="display:grid; grid-template-columns: repeat(4, minmax(180px, 1fr)); gap: 0.8rem;">
-            <div>
+        <div class="filter-bar" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr));">
+            <div class="field">
                 <label for="user">User</label>
                 <input id="user" name="user" value="{{ filters.user }}" placeholder="doctor_amy">
             </div>
-            <div>
+            <div class="field">
                 <label for="patient">Patient ID</label>
                 <input id="patient" name="patient" value="{{ filters.patient }}" placeholder="PAT-000342">
             </div>
-            <div>
+            <div class="field">
                 <label for="action">Action</label>
                 <select id="action" name="action">
-                    <option value="">All</option>
+                    <option value="">All actions</option>
                     {% for value, label in action_choices %}
                         <option value="{{ value }}" {% if filters.action == value %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                 </select>
             </div>
-            <div>
+            <div class="field">
                 <label for="flagged">Flagged</label>
                 <select id="flagged" name="flagged">
                     <option value="" {% if not filters.flagged %}selected{% endif %}>All</option>
-                    <option value="yes" {% if filters.flagged == "yes" %}selected{% endif %}>Yes</option>
-                    <option value="no" {% if filters.flagged == "no" %}selected{% endif %}>No</option>
+                    <option value="yes" {% if filters.flagged == "yes" %}selected{% endif %}>Flagged only</option>
+                    <option value="no" {% if filters.flagged == "no" %}selected{% endif %}>Not flagged</option>
                 </select>
             </div>
-            <div>
+            <div class="field">
                 <label for="source">Source</label>
                 <select id="source" name="source">
-                    <option value="" {% if not filters.source %}selected{% endif %}>All</option>
+                    <option value="" {% if not filters.source %}selected{% endif %}>All sources</option>
                     <option value="live" {% if filters.source == "live" %}selected{% endif %}>Live</option>
                     <option value="synthetic" {% if filters.source == "synthetic" %}selected{% endif %}>Synthetic</option>
                 </select>
             </div>
-            <div>
+            <div class="field">
                 <label for="date_from">Date from</label>
                 <input id="date_from" type="date" name="date_from" value="{{ filters.date_from }}">
             </div>
-            <div>
+            <div class="field">
                 <label for="date_to">Date to</label>
                 <input id="date_to" type="date" name="date_to" value="{{ filters.date_to }}">
             </div>
-            <div style="display:flex; align-items:end; gap:0.5rem;">
-                <button class="btn" type="submit">Apply</button>
-                <a class="btn btn-secondary" href="{% url 'accesslog-list' %}">Reset</a>
+            <div class="field" style="justify-content:flex-end;">
+                <button class="btn" type="submit">Apply filters</button>
             </div>
         </div>
     </form>
 </div>
 
-<div class="card">
+<!-- Results -->
+<div class="card" style="padding:0;overflow:hidden;">
     <div class="table-wrap" role="region" aria-label="Access log entries">
-    <table>
-        <thead>
-            <tr>
-                <th>Time</th>
-                <th>User</th>
-                <th>Role</th>
-                <th>Patient</th>
-                <th>Action</th>
-                <th>IP Address</th>
-                <th>User Agent</th>
-                <th>Flagged</th>
-                <th>True Anomaly</th>
-                <th>Score</th>
-                <th>Risk</th>
-                <th>Severity</th>
-                <th>Alert Status</th>
-                <th>Notes</th>
-                <th>Source</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for log in logs %}
-            <tr>
-                <td>{{ log.accessed_at }}</td>
-                <td>{{ log.user.username }}</td>
-                <td>{{ log.role_snapshot }}</td>
-                <td>{% if log.patient_record %}{{ log.patient_record.hospital_id }}{% else %}-{% endif %}</td>
-                <td>{{ log.action }}</td>
-                <td>{{ log.ip_address|default:"-" }}</td>
-                <td title="{{ log.user_agent }}">{{ log.user_agent|default:"-"|truncatechars:36 }}</td>
-                <td>{{ log.is_flagged|yesno:"Yes,No" }}</td>
-                <td>{{ log.is_true_anomaly|yesno:"Yes,No" }}</td>
-                <td>{{ log.anomaly_score|default:"-" }}</td>
-                <td>{{ log.risk_score|default:"-" }}</td>
-                <td>{{ log.alert_severity|default:"-" }}</td>
-                <td>{{ log.alert_status|default:"-" }}</td>
-                <td title="{{ log.notes }}">{{ log.notes|default:"-"|truncatechars:42 }}</td>
-                <td>{{ log.is_simulated|yesno:"Synthetic,Live" }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="15">No access logs found.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+        <table>
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>User</th>
+                    <th>Role</th>
+                    <th>Patient</th>
+                    <th>Action</th>
+                    <th>IP Address</th>
+                    <th>Flagged</th>
+                    <th>True Anomaly</th>
+                    <th>Score</th>
+                    <th>Risk</th>
+                    <th>Severity</th>
+                    <th>Alert Status</th>
+                    <th>Source</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td style="font-family:var(--font-mono);font-size:0.76rem;color:var(--gray-500);">{{ log.accessed_at }}</td>
+                    <td style="font-weight:600;color:var(--gray-800);">{{ log.user.username }}</td>
+                    <td><span class="badge info" style="font-size:0.64rem;">{{ log.role_snapshot }}</span></td>
+                    <td style="font-family:var(--font-mono);font-size:0.78rem;">
+                        {% if log.patient_record %}{{ log.patient_record.hospital_id }}{% else %}—{% endif %}
+                    </td>
+                    <td>{{ log.action }}</td>
+                    <td style="font-family:var(--font-mono);font-size:0.76rem;">{{ log.ip_address|default:"—" }}</td>
+                    <td>
+                        {% if log.is_flagged %}
+                            <span class="badge high">Yes</span>
+                        {% else %}
+                            <span style="color:var(--gray-300);font-size:0.78rem;">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if log.is_true_anomaly %}
+                            <span class="badge critical">Yes</span>
+                        {% else %}
+                            <span style="color:var(--gray-300);font-size:0.78rem;">—</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-family:var(--font-mono);font-size:0.78rem;">{{ log.anomaly_score|default:"—" }}</td>
+                    <td style="font-family:var(--font-mono);font-size:0.78rem;">{{ log.risk_score|default:"—" }}</td>
+                    <td>
+                        {% if log.alert_severity %}
+                            <span class="badge {{ log.alert_severity|lower }}">{{ log.alert_severity }}</span>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if log.alert_status %}
+                            <span class="badge {{ log.alert_status|lower }}">{{ log.alert_status }}</span>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if log.is_simulated %}
+                            <span class="badge medium">Synthetic</span>
+                        {% else %}
+                            <span class="badge success">Live</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="13">
+                        <div class="empty-state" style="margin:8px;">
+                            <h4>No access logs found</h4>
+                            <p>Try adjusting your filter criteria.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
 
 {% if is_paginated %}
-<div class="card">
+<div class="pagination">
     {% if page_obj.has_previous %}
-        <a class="btn btn-secondary" href="?page={{ page_obj.previous_page_number }}{{ page_query }}">Previous</a>
+        <a class="btn btn-secondary btn-sm" href="?page={{ page_obj.previous_page_number }}{{ page_query }}">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+            Previous
+        </a>
     {% endif %}
-    <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    <span style="font-size:0.82rem;color:var(--gray-500);">
+        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+    </span>
     {% if page_obj.has_next %}
-        <a class="btn btn-secondary" href="?page={{ page_obj.next_page_number }}{{ page_query }}">Next</a>
+        <a class="btn btn-secondary btn-sm" href="?page={{ page_obj.next_page_number }}{{ page_query }}">
+            Next
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+        </a>
     {% endif %}
 </div>
 {% endif %}
+
 {% endblock %}

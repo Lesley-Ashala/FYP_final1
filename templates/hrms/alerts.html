@@ -1,6 +1,15 @@
 {% extends "base.html" %}
 
 {% block content %}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1 class="page-title">Alert Queue</h1>
+        <p class="page-meta">Risk-scored anomalies from behavioral detection requiring security review.</p>
+    </div>
+</div>
+
+<!-- Analytics strip -->
 <section class="card" style="margin-bottom:14px;">
     <div class="card-header">
         <div>
@@ -8,88 +17,153 @@
             <p class="card-note">Forecasted alert load based on the recent 48-hour anomaly trend.</p>
         </div>
     </div>
-    <div class="grid four">
-        <div class="pill">Recent 24h alerts: {{ alert_analytics.recent_24h_count }}</div>
-        <div class="pill">Previous 24h alerts: {{ alert_analytics.previous_24h_count }}</div>
-        <div class="pill">Predicted next hour: {{ alert_analytics.predicted_next_hour }}</div>
-        <div class="pill">Predicted next 24h: {{ alert_analytics.predicted_next_24h }}</div>
-        <div class="pill">Trend change: {{ alert_analytics.growth_percent }}%</div>
-        <div class="pill">Open alerts: {{ alert_analytics.open_alerts }}</div>
-        <div class="pill">Critical open alerts: {{ alert_analytics.critical_open_alerts }}</div>
-        <div class="pill">Recommended threshold quantile: {{ alert_analytics.recommended_quantile }}</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:14px;">
+        <div class="pill" style="justify-content:space-between;">
+            <span style="color:var(--gray-400);font-size:0.72rem;">Recent 24h</span>
+            <strong>{{ alert_analytics.recent_24h_count }}</strong>
+        </div>
+        <div class="pill" style="justify-content:space-between;">
+            <span style="color:var(--gray-400);font-size:0.72rem;">Previous 24h</span>
+            <strong>{{ alert_analytics.previous_24h_count }}</strong>
+        </div>
+        <div class="pill" style="justify-content:space-between;">
+            <span style="color:var(--gray-400);font-size:0.72rem;">Next hour</span>
+            <strong>{{ alert_analytics.predicted_next_hour }}</strong>
+        </div>
+        <div class="pill" style="justify-content:space-between;">
+            <span style="color:var(--gray-400);font-size:0.72rem;">Next 24h</span>
+            <strong>{{ alert_analytics.predicted_next_24h }}</strong>
+        </div>
+        <div class="pill" style="justify-content:space-between;">
+            <span style="color:var(--gray-400);font-size:0.72rem;">Trend</span>
+            {% if alert_analytics.growth_percent > 0 %}
+            <strong style="color:var(--danger-500);">
+            {% else %}
+            <strong style="color:var(--success-500);">
+            {% endif %}
+                {{ alert_analytics.growth_percent }}%
+            </strong>
+        </div>
+        <div class="pill" style="justify-content:space-between;">
+            <span style="color:var(--gray-400);font-size:0.72rem;">Open alerts</span>
+            <strong>{{ alert_analytics.open_alerts }}</strong>
+        </div>
+        <div class="pill" style="justify-content:space-between;">
+            <span style="color:var(--gray-400);font-size:0.72rem;">Critical open</span>
+            <strong style="color:var(--danger-500);">{{ alert_analytics.critical_open_alerts }}</strong>
+        </div>
+        <div class="pill" style="justify-content:space-between;">
+            <span style="color:var(--gray-400);font-size:0.72rem;">Rec. quantile</span>
+            <strong style="font-family:var(--font-mono);">{{ alert_analytics.recommended_quantile }}</strong>
+        </div>
     </div>
-    <form method="post" action="{% url 'hrms-run-detection' %}" class="button-row" style="margin-top:12px;">
+    <form method="post" action="{% url 'hrms-run-detection' %}" class="button-row">
         {% csrf_token %}
-        <input class="input" type="number" step="0.01" min="0.01" max="0.50" name="contamination" value="0.08" style="max-width:140px;">
-        <input class="input" type="number" step="0.01" min="0.01" max="0.99" name="threshold_quantile" value="{{ alert_analytics.recommended_quantile }}" style="max-width:190px;">
-        <button class="btn" type="submit">Run Auto Detection + Alerts</button>
+        <input type="number" step="0.01" min="0.01" max="0.50" name="contamination"
+               value="0.08" style="max-width:130px;" placeholder="Contamination">
+        <input type="number" step="0.01" min="0.01" max="0.99" name="threshold_quantile"
+               value="{{ alert_analytics.recommended_quantile }}" style="max-width:150px;" placeholder="Threshold quantile">
+        <button class="btn" type="submit">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Run Auto Detection
+        </button>
     </form>
 </section>
 
-<section class="split">
-    <article class="card">
-        <div class="card-header">
-            <div>
-                <h3 class="card-title">Alert Queue</h3>
-                <p class="card-note">Risk-scored anomalies from behavioral detection.</p>
-            </div>
-            <a class="btn secondary" href="{% url 'hrms-alerts' %}">Reset</a>
+<!-- Alert queue + Detail panel -->
+<div class="split" style="align-items:start;">
+
+    <!-- Queue table -->
+    <article class="card" style="margin-bottom:0;padding:0;overflow:hidden;">
+        <div class="card-header" style="padding:14px 16px 10px;">
+            <h3 class="card-title">Alerts</h3>
+            <a class="btn btn-secondary btn-sm" href="{% url 'hrms-alerts' %}">Reset view</a>
         </div>
-        <div class="table-wrap" role="region" aria-label="Alert queue">
+        <div class="table-wrap" role="region" aria-label="Alert queue" style="border:none;">
             <table>
                 <thead>
                     <tr>
                         <th>Alert ID</th>
                         <th>Severity</th>
                         <th>Status</th>
-                        <th>Risk Score</th>
+                        <th>Risk</th>
                         <th>Summary</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for alert in alerts %}
-                        <tr>
-                            <td><a href="{% url 'hrms-alerts' %}?alert={{ alert.pk }}">{{ alert.id }}</a></td>
-                            <td><span class="badge {{ alert.severity|lower }}">{{ alert.severity }}</span></td>
-                            <td><span class="badge {{ alert.status|lower }}">{{ alert.status }}</span></td>
-                            <td>{{ alert.risk_score }}</td>
-                            <td>{{ alert.summary }}</td>
-                        </tr>
+                    <tr>
+                        <td>
+                            <a href="{% url 'hrms-alerts' %}?alert={{ alert.pk }}"
+                               style="font-family:var(--font-mono);font-size:0.78rem;color:var(--brand-600);font-weight:600;">
+                                {{ alert.id }}
+                            </a>
+                        </td>
+                        <td><span class="badge {{ alert.severity|lower }}">{{ alert.severity }}</span></td>
+                        <td><span class="badge {{ alert.status|lower }}">{{ alert.status }}</span></td>
+                        <td style="font-family:var(--font-mono);font-size:0.78rem;">{{ alert.risk_score }}</td>
+                        <td style="font-size:0.79rem;max-width:180px;white-space:normal;color:var(--gray-600);">
+                            {{ alert.summary }}
+                        </td>
+                    </tr>
                     {% empty %}
-                        <tr><td colspan="5">No alerts in selected range.</td></tr>
+                    <tr>
+                        <td colspan="5">
+                            <div class="empty-state" style="margin:8px;">
+                                <h4>No alerts in selected range</h4>
+                                <p>Try widening date filters or include medium/low severity events.</p>
+                            </div>
+                        </td>
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </article>
 
-    <article class="card">
+    <!-- Detail panel -->
+    <article class="card" style="margin-bottom:0;">
         {% if selected_alert %}
             <div class="card-header">
                 <div>
-                    <h3 class="card-title">Alert Details - ALT-{{ selected_alert.id|stringformat:"05d" }}</h3>
+                    <h3 class="card-title">ALT-{{ selected_alert.id|stringformat:"05d" }}</h3>
                     <p class="card-note">Explanation and investigation context.</p>
                 </div>
-                <span class="badge {{ selected_alert.alert_severity|default:'medium' }}">{{ selected_alert.alert_severity|default:"medium"|title }}</span>
-            </div>
-            <div class="notice warning">
-                Why flagged: {{ selected_alert.notes|default:"Behavioral anomaly pattern exceeded expected threshold." }}
-            </div>
-            <div class="timeline" style="margin-top:10px;">
-                <div class="timeline-item"><strong>{{ selected_alert.accessed_at|date:"H:i" }}</strong> Access anomaly event recorded.</div>
-                <div class="timeline-item"><strong>+2m</strong> Risk score computed at {{ selected_alert.risk_score|default:"-" }}.</div>
-                <div class="timeline-item"><strong>+5m</strong> Alert routed to Security queue.</div>
-                <div class="timeline-item"><strong>Current</strong> Status: {{ selected_alert.alert_status|title }}.</div>
+                <span class="badge {{ selected_alert.alert_severity|default:'medium' }}">
+                    {{ selected_alert.alert_severity|default:"medium"|title }}
+                </span>
             </div>
 
+            <div class="notice warning" style="margin-bottom:12px;">
+                <strong>Why flagged:</strong> {{ selected_alert.notes|default:"Behavioral anomaly pattern exceeded expected threshold." }}
+            </div>
+
+            <!-- Timeline -->
+            <div class="timeline" style="margin-bottom:16px;">
+                <div class="timeline-item">
+                    <strong>{{ selected_alert.accessed_at|date:"H:i" }}</strong> — Access anomaly event recorded.
+                </div>
+                <div class="timeline-item">
+                    <strong>+2m</strong> — Risk score computed at {{ selected_alert.risk_score|default:"—" }}.
+                </div>
+                <div class="timeline-item">
+                    <strong>+5m</strong> — Alert routed to Security queue.
+                </div>
+                <div class="timeline-item">
+                    <strong>Now</strong> — Status: <strong>{{ selected_alert.alert_status|title }}</strong>.
+                </div>
+            </div>
+
+            <!-- Triage form -->
             <form method="post" action="{% url 'hrms-triage-alert' selected_alert.id %}">
                 {% csrf_token %}
-                <div class="field" style="margin-top:12px;">
+                <div class="field">
                     <label>Assign investigator</label>
-                    <select class="select" name="investigator_id">
+                    <select name="investigator_id">
                         <option value="">Unassigned</option>
                         {% for investigator in investigators %}
-                            <option value="{{ investigator.id }}" {% if selected_alert.assigned_investigator_id == investigator.id %}selected{% endif %}>
+                            <option value="{{ investigator.id }}"
+                                {% if selected_alert.assigned_investigator_id == investigator.id %}selected{% endif %}>
                                 {{ investigator.username|upper }} / {{ investigator.get_full_name|default:investigator.username }}
                             </option>
                         {% endfor %}
@@ -97,52 +171,63 @@
                 </div>
                 <div class="field">
                     <label>Case reference</label>
-                    <input class="input" name="case_reference" value="{{ selected_alert.case_reference }}" placeholder="CASE-2026-014">
-                    <p class="helper">Use an existing case or provide a new case reference.</p>
+                    <input name="case_reference" value="{{ selected_alert.case_reference }}"
+                           placeholder="CASE-2026-014">
+                    <p class="helper">Use an existing case or provide a new reference.</p>
                 </div>
                 <div class="field">
                     <label>Triage notes</label>
-                    <textarea class="textarea" name="triage_notes" placeholder="Document triage decision and containment steps.">{{ selected_alert.triage_notes }}</textarea>
+                    <textarea name="triage_notes"
+                              placeholder="Document triage decision and containment steps.">{{ selected_alert.triage_notes }}</textarea>
                 </div>
                 <div class="button-row">
                     <button class="btn" type="submit">Mark as Triaged</button>
-                    <button class="btn danger" type="button" data-open-modal="close-alert-modal">Close Alert</button>
+                    <button class="btn btn-danger" type="button" data-open-modal="close-alert-modal">Close Alert</button>
                 </div>
             </form>
         {% else %}
             <div class="empty-state">
-                <h4>No alerts in selected range</h4>
-                <p>Try widening date filters or include medium/low severity events.</p>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--gray-300)" stroke-width="1.5" style="margin:0 auto 10px;display:block;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <h4>No alert selected</h4>
+                <p>Click an alert ID to view details and triage options.</p>
             </div>
         {% endif %}
     </article>
-</section>
+</div>
 
+<!-- Close Alert Modal -->
 {% if selected_alert %}
 <div class="modal-backdrop" id="close-alert-modal">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="close-alert-title">
-        <h3 id="close-alert-title">Close alert ALT-{{ selected_alert.id|stringformat:"05d" }}</h3>
-        <p>Confirm closure and provide disposition summary for audit compliance.</p>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+            <h3 id="close-alert-title">Close Alert ALT-{{ selected_alert.id|stringformat:"05d" }}</h3>
+            <button class="btn ghost btn-sm" data-close-modal aria-label="Close" style="padding:4px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <p>Confirm closure and provide a disposition summary for audit compliance.</p>
         <form method="post" action="{% url 'hrms-close-alert' selected_alert.id %}">
             {% csrf_token %}
             <div class="field">
                 <label>Closure reason</label>
-                <select class="select" name="closure_reason">
-                    <option>False positive - verified legitimate workflow</option>
+                <select name="closure_reason">
+                    <option>False positive — verified legitimate workflow</option>
                     <option>Policy violation handled</option>
                     <option>Escalated to formal investigation</option>
                 </select>
             </div>
             <div class="field">
                 <label>Final note</label>
-                <textarea class="textarea" name="final_note" placeholder="Describe verification outcome and sign-off authority."></textarea>
+                <textarea name="final_note"
+                          placeholder="Describe verification outcome and sign-off authority."></textarea>
             </div>
-            <div class="button-row">
+            <div class="button-row" style="margin-top:12px;">
                 <button class="btn" type="submit">Confirm Close</button>
-                <button class="btn secondary" type="button" data-close-modal>Cancel</button>
+                <button class="btn btn-secondary" type="button" data-close-modal>Cancel</button>
             </div>
         </form>
     </div>
 </div>
 {% endif %}
+
 {% endblock %}

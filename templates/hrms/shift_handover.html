@@ -1,52 +1,80 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="card">
-    <div class="card-header">
-        <div>
-            <h3 class="card-title">Auto Shift Summary</h3>
-            <p class="card-note">Generated from vitals, nursing notes, due tasks, and alert flags for outgoing shift.</p>
-        </div>
-        <div class="button-row">
-            <button class="btn secondary" data-toast="Printable handover prepared" data-tone="success">Print</button>
-            <button class="btn secondary disabled" disabled>Export</button>
-        </div>
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1 class="page-title">Shift Handover</h1>
+        <p class="page-meta">Auto-generated from vitals, nursing notes, due tasks, and alert flags for outgoing shift.</p>
     </div>
-    <div class="notice warning">
-        Export is restricted for this role. Use print handover sheet or request approval from Admin.
+    <div class="button-row">
+        <button class="btn btn-secondary"
+                data-toast="Printable handover prepared" data-tone="success">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            Print
+        </button>
+        <button class="btn btn-secondary disabled" disabled>Export</button>
+    </div>
+</div>
+
+<div class="notice warning" style="margin-bottom:14px;">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:5px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    Export is restricted for this role. Use the print handover sheet or request approval from Admin.
+</div>
+
+<!-- Auto summary -->
+<section class="card" style="margin-bottom:14px;">
+    <div class="card-header">
+        <h3 class="card-title">Auto Shift Summary</h3>
+        <span class="badge success">Generated</span>
     </div>
     <div class="grid two">
         <div>
-            <h4 style="margin:0 0 8px;">Ward C Summary</h4>
-            <p class="card-note">{{ auto_summary }}</p>
+            <p style="font-size:0.8rem;font-weight:600;color:var(--gray-600);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">Ward C Summary</p>
+            <p style="font-size:0.84rem;color:var(--gray-600);line-height:1.65;">{{ auto_summary }}</p>
         </div>
         <div>
-            <h4 style="margin:0 0 8px;">Escalations</h4>
-            <p class="card-note">
+            <p style="font-size:0.8rem;font-weight:600;color:var(--gray-600);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">Escalations</p>
+            <p style="font-size:0.84rem;color:var(--gray-600);line-height:1.65;">
                 2 escalation notes filed. 1 pending callback from on-call respiratory team for oxygen adjustment review.
             </p>
         </div>
     </div>
 </section>
 
-<section class="card" style="margin-top:14px;">
-    <h3 class="card-title">Pending Tasks Checklist</h3>
-    <p class="card-note">Complete before handover sign-off.</p>
+<!-- Pending tasks + sign-off -->
+<section class="card">
+    <div class="card-header">
+        <h3 class="card-title">Pending Tasks Checklist</h3>
+        <p class="card-note">Complete all tasks before handover sign-off.</p>
+    </div>
     <form method="post" action="{% url 'hrms-signoff-handover' %}">
         {% csrf_token %}
-        <div class="grid" style="margin-top:10px;">
+        <div style="display:grid;gap:8px;margin-bottom:16px;">
             {% for task in pending_tasks %}
-                <label class="checkbox"><input type="checkbox"> {{ task }}</label>
+                <label class="checkbox" style="padding:10px 12px;background:var(--gray-50);border:1px solid var(--border);border-radius:var(--r-md);">
+                    <input type="checkbox">
+                    {{ task }}
+                </label>
+            {% empty %}
+                <p style="font-size:0.82rem;color:var(--gray-400);">No pending tasks for this shift.</p>
             {% endfor %}
         </div>
-        <div class="field" style="margin-top:10px;">
-            <label>Shift note (optional)</label>
-            <textarea class="textarea" name="handover_note" placeholder="Add final handover comment for incoming shift."></textarea>
+
+        <div class="field">
+            <label>Shift note <span style="color:var(--gray-400);font-weight:400;">(optional)</span></label>
+            <textarea name="handover_note"
+                      placeholder="Add final handover comment for incoming shift."></textarea>
         </div>
-        <div class="button-row" style="margin-top:12px;">
-            <button class="btn" type="submit">Sign Off Shift</button>
-            <button class="btn secondary" type="reset">Save Draft</button>
+
+        <div class="button-row" style="margin-top:4px;">
+            <button class="btn" type="submit">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                Sign Off Shift
+            </button>
+            <button class="btn btn-secondary" type="reset">Save Draft</button>
         </div>
     </form>
 </section>
+
 {% endblock %}

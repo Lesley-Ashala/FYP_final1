@@ -1,73 +1,115 @@
 {% extends "base.html" %}
 
 {% block content %}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1 class="page-title">Roles &amp; Permissions</h1>
+        <p class="page-meta">Manage role-based access control policies for all staff roles.</p>
+    </div>
+</div>
+
 <form method="post" action="{% url 'hrms-save-permissions' %}">
     {% csrf_token %}
-    <section class="grid two">
+
+    <div class="grid two" style="margin-bottom:14px;">
+        <!-- Role catalog -->
         <article class="card">
             <div class="card-header">
-                <div>
-                    <h3 class="card-title">Role Catalog</h3>
-                    <p class="card-note">Defined access profiles in Hospital Secure Records.</p>
+                <h3 class="card-title">Role Catalog</h3>
+                <span class="badge info">3 Roles</span>
+            </div>
+            <div style="display:grid;gap:8px;">
+                <div style="padding:12px;background:var(--brand-50);border:1px solid var(--brand-200);border-radius:var(--r-md);">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                        <span class="badge success">Admin</span>
+                        <span style="font-size:0.78rem;font-weight:600;color:var(--gray-800);">ADM-XXXX</span>
+                    </div>
+                    <p style="font-size:0.78rem;color:var(--gray-500);line-height:1.5;margin:0;">
+                        User management, system policy, audit &amp; alerts oversight, anomaly detection.
+                    </p>
+                </div>
+                <div style="padding:12px;background:var(--gray-50);border:1px solid var(--border);border-radius:var(--r-md);">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                        <span class="badge info">Nurse</span>
+                        <span style="font-size:0.78rem;font-weight:600;color:var(--gray-800);">NUR-XXXX</span>
+                    </div>
+                    <p style="font-size:0.78rem;color:var(--gray-500);line-height:1.5;margin:0;">
+                        Assigned record access, nursing notes, vitals recording, shift handover.
+                    </p>
+                </div>
+                <div style="padding:12px;background:var(--gray-50);border:1px solid var(--border);border-radius:var(--r-md);">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                        <span class="badge medium">Doctor</span>
+                        <span style="font-size:0.78rem;font-weight:600;color:var(--gray-800);">DOC-XXXX</span>
+                    </div>
+                    <p style="font-size:0.78rem;color:var(--gray-500);line-height:1.5;margin:0;">
+                        Assigned records, clinical updates, diagnosis management.
+                    </p>
                 </div>
             </div>
-            <div class="grid">
-                <div class="pill">Admin: user management, system policy, audit/alerts oversight</div>
-                <div class="pill">Nurse: assigned record access + notes + vitals</div>
-                <div class="pill">Doctor: assigned records + clinical updates</div>
-            </div>
         </article>
 
+        <!-- Change control -->
         <article class="card">
-            <h3 class="card-title">Change Control</h3>
-            <p class="card-note">Saving permission changes requires reason and creates an immutable audit event.</p>
-            <div class="field" style="margin-top:10px;">
-                <label>Reason for change (required)</label>
-                <textarea class="textarea" name="change_reason" required placeholder="Example: Grant Admin export rights for quarterly compliance submission."></textarea>
-                <p class="helper">This reason is included in audit records.</p>
+            <div class="card-header">
+                <h3 class="card-title">Change Control</h3>
             </div>
-            <div class="button-row">
-                <button class="btn" type="submit">Save Changes</button>
-                <a class="btn secondary" href="{% url 'hrms-roles-permissions' %}">Discard</a>
+            <p style="font-size:0.82rem;color:var(--gray-500);margin-bottom:12px;line-height:1.55;">
+                Saving permission changes requires a justification reason and creates an immutable audit event with actor, timestamp, and reason logged.
+            </p>
+            <div class="field">
+                <label>Reason for change <span style="color:var(--danger-500);">*</span></label>
+                <textarea name="change_reason" required
+                          placeholder="Example: Grant Admin export rights for quarterly compliance submission."></textarea>
+                <p class="helper">This reason is included verbatim in audit records.</p>
+            </div>
+            <div class="button-row" style="margin-top:4px;">
+                <button class="btn" type="submit">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>
+                    Save Changes
+                </button>
+                <a class="btn btn-secondary" href="{% url 'hrms-roles-permissions' %}">Discard</a>
             </div>
         </article>
-    </section>
+    </div>
 
-    <section class="card" style="margin-top:14px;">
-        <div class="card-header">
+    <!-- Permissions matrix -->
+    <section class="card" style="padding:0;overflow:hidden;">
+        <div class="card-header" style="padding:14px 18px 0;">
             <div>
                 <h3 class="card-title">Permissions Matrix</h3>
-                <p class="card-note">Checkbox grid representation of current role-policy assignments.</p>
+                <p class="card-note">Checkbox grid of current role-to-permission assignments.</p>
             </div>
         </div>
-        <div class="table-wrap" role="region" aria-label="Permissions matrix">
+        <div class="table-wrap" role="region" aria-label="Permissions matrix" style="border:none;">
             <table>
                 <thead>
                     <tr>
-                        <th>Role</th>
+                        <th style="min-width:120px;">Role</th>
                         {% for header in permission_headers %}
-                            <th>{{ header }}</th>
+                            <th style="text-align:center;min-width:110px;">{{ header }}</th>
                         {% endfor %}
                     </tr>
                 </thead>
                 <tbody>
                     {% for role_name, role_key, permissions in permission_rows %}
-                        <tr>
-                            <td>{{ role_name }}</td>
-                            {% for perm_key, is_enabled in permissions %}
-                                <td>
-                                    <input
-                                        type="checkbox"
-                                        name="perm__{{ role_key }}__{{ perm_key }}"
-                                        {% if is_enabled %}checked{% endif %}
-                                    >
-                                </td>
-                            {% endfor %}
-                        </tr>
+                    <tr>
+                        <td style="font-weight:600;color:var(--gray-900);">{{ role_name }}</td>
+                        {% for perm_key, is_enabled in permissions %}
+                        <td style="text-align:center;">
+                            <input type="checkbox"
+                                   name="perm__{{ role_key }}__{{ perm_key }}"
+                                   {% if is_enabled %}checked{% endif %}
+                                   style="width:15px;height:15px;accent-color:var(--brand-500);cursor:pointer;">
+                        </td>
+                        {% endfor %}
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </section>
 </form>
+
 {% endblock %}

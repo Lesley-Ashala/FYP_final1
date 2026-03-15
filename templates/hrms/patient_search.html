@@ -1,78 +1,111 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="card">
-    <div class="card-header">
-        <div>
-            <h3 class="card-title">Search Patients</h3>
-            <p class="card-note">Search by patient number, name, ward, or bed number.</p>
-        </div>
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1 class="page-title">Patient Search</h1>
+        <p class="page-meta">Search by patient number, name, ward, or bed. Access reason is required.</p>
     </div>
-    <form method="get" class="filter-bar">
-        <div class="field">
-            <label>Patient number</label>
-            <input class="input" name="patient_number" placeholder="PAT-000342" value="{{ filters.patient_number }}">
-        </div>
-        <div class="field">
-            <label>Patient name</label>
-            <input class="input" name="patient_name" placeholder="Avery Cole" value="{{ filters.patient_name }}">
-        </div>
-        <div class="field">
-            <label>Ward</label>
-            <select class="select" name="ward">
-                <option {% if filters.ward == "Any" %}selected{% endif %}>Any</option>
-                <option {% if filters.ward == "Ward C" %}selected{% endif %}>Ward C</option>
-                <option {% if filters.ward == "ICU-2" %}selected{% endif %}>ICU-2</option>
-                <option {% if filters.ward == "Ward A" %}selected{% endif %}>Ward A</option>
-                <option {% if filters.ward == "Ward B" %}selected{% endif %}>Ward B</option>
-            </select>
-        </div>
-        <div class="field">
-            <label>Bed number</label>
-            <input class="input" name="bed" placeholder="12" value="{{ filters.bed }}">
-        </div>
-        <div class="field">
-            <label>Status</label>
-            <select class="select" name="status">
-                <option {% if filters.status == "Any" %}selected{% endif %}>Any</option>
-                <option {% if filters.status == "Stable" %}selected{% endif %}>Stable</option>
-                <option {% if filters.status == "Observation" %}selected{% endif %}>Observation</option>
-                <option {% if filters.status == "Needs review" %}selected{% endif %}>Needs review</option>
-            </select>
-        </div>
-        <div class="field">
-            <button class="btn" type="submit">Search</button>
+</div>
+
+<!-- Search filters -->
+<div class="card" style="margin-bottom:14px;">
+    <form method="get">
+        <div class="filter-bar" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr));">
+            <div class="field">
+                <label>Patient number</label>
+                <input name="patient_number" placeholder="PAT-000342" value="{{ filters.patient_number }}">
+            </div>
+            <div class="field">
+                <label>Patient name</label>
+                <input name="patient_name" placeholder="Avery Cole" value="{{ filters.patient_name }}">
+            </div>
+            <div class="field">
+                <label>Ward</label>
+                <select name="ward">
+                    <option {% if filters.ward == "Any" %}selected{% endif %}>Any</option>
+                    <option {% if filters.ward == "Ward A" %}selected{% endif %}>Ward A</option>
+                    <option {% if filters.ward == "Ward B" %}selected{% endif %}>Ward B</option>
+                    <option {% if filters.ward == "Ward C" %}selected{% endif %}>Ward C</option>
+                    <option {% if filters.ward == "ICU-2" %}selected{% endif %}>ICU-2</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>Bed number</label>
+                <input name="bed" placeholder="12" value="{{ filters.bed }}">
+            </div>
+            <div class="field">
+                <label>Status</label>
+                <select name="status">
+                    <option {% if filters.status == "Any" %}selected{% endif %}>Any</option>
+                    <option {% if filters.status == "Stable" %}selected{% endif %}>Stable</option>
+                    <option {% if filters.status == "Observation" %}selected{% endif %}>Observation</option>
+                    <option {% if filters.status == "Needs review" %}selected{% endif %}>Needs review</option>
+                </select>
+            </div>
+            <div class="field" style="justify-content:flex-end;">
+                <button class="btn" type="submit">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.2-4.2"/></svg>
+                    Search
+                </button>
+            </div>
         </div>
     </form>
-</section>
+</div>
 
-<section class="grid three" style="margin-top:14px;">
+<!-- Results grid -->
+<section class="grid three" style="margin-bottom:14px;">
     {% for patient in patients %}
-    <article class="card">
+    <article class="card" style="margin-bottom:0;transition:box-shadow var(--transition),transform var(--transition);"
+             onmouseover="this.style.transform='translateY(-2px)'"
+             onmouseout="this.style.transform='translateY(0)'">
         <div class="card-header">
-            <div>
-                <h3 class="card-title">{{ patient.name }}</h3>
-                <p class="card-note">{{ patient.patient_ref }}</p>
+            <div style="min-width:0;">
+                <h3 class="card-title" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ patient.name }}</h3>
+                <p class="card-note" style="font-family:var(--font-mono);">{{ patient.patient_ref }}</p>
             </div>
             {% if patient.status == "Stable" %}
-                <span class="badge success">{{ patient.status }}</span>
+                <span class="badge success" style="flex-shrink:0;">{{ patient.status }}</span>
             {% elif patient.status == "Observation" %}
-                <span class="badge medium">{{ patient.status }}</span>
+                <span class="badge medium" style="flex-shrink:0;">{{ patient.status }}</span>
             {% else %}
-                <span class="badge high">{{ patient.status }}</span>
+                <span class="badge high" style="flex-shrink:0;">{{ patient.status }}</span>
             {% endif %}
         </div>
-        <p class="card-note">Ward/Bed: {{ patient.ward }} / {{ patient.bed }}</p>
-        <p class="card-note">Age: {{ patient.age }} | Gender: {{ patient.gender }}</p>
-        <p class="card-note">Assigned clinician: {{ patient.clinician }}</p>
-        <div class="button-row" style="margin-top:11px;">
-            <button class="btn" data-open-modal="access-reason-modal-{{ patient.pk }}">Open Record</button>
-            <button class="btn secondary" data-toast="Task queued for {{ patient.patient_ref }}" data-tone="success">Queue Task</button>
+
+        <div style="display:grid;gap:4px;margin-bottom:12px;">
+            <div style="display:flex;gap:6px;font-size:0.78rem;color:var(--gray-500);">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px;"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                Ward {{ patient.ward }} / Bed {{ patient.bed }}
+            </div>
+            <div style="display:flex;gap:6px;font-size:0.78rem;color:var(--gray-500);">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>
+                Age {{ patient.age }} · {{ patient.gender }}
+            </div>
+            <div style="display:flex;gap:6px;font-size:0.78rem;color:var(--gray-500);">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px;"><path d="M9 2h6v4h4v4c0 4-3.1 7.4-7 8-3.9-.6-7-4-7-8V6h4V2Z"/></svg>
+                {{ patient.clinician }}
+            </div>
+        </div>
+
+        <div class="button-row">
+            <button class="btn" data-open-modal="access-reason-modal-{{ patient.pk }}"
+                    style="flex:1;justify-content:center;">
+                Open Record
+            </button>
+            <button class="btn btn-secondary btn-sm"
+                    data-toast="Task queued for {{ patient.patient_ref }}"
+                    data-tone="success"
+                    aria-label="Queue task">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            </button>
         </div>
     </article>
     {% empty %}
-    <article class="card" style="grid-column:1 / -1;">
+    <article class="card" style="grid-column:1 / -1;margin-bottom:0;">
         <div class="empty-state">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--gray-300)" stroke-width="1.5" style="margin:0 auto 10px;display:block;"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.2-4.2"/></svg>
             <h4>No matching patients</h4>
             <p>Refine your filters or search by patient number.</p>
         </div>
@@ -80,25 +113,22 @@
     {% endfor %}
 </section>
 
-<section class="card" style="margin-top:14px;">
-    <h3 class="card-title">Loading State Example</h3>
-    <div class="loading-state" style="margin-top:10px;">
-        <div class="loading-dot"></div>
-        <h4>Searching patient index...</h4>
-        <p>Fetching latest ward assignments and access policy context.</p>
-    </div>
-</section>
-
+<!-- Access reason modals -->
 {% for patient in patients %}
 <div class="modal-backdrop" id="access-reason-modal-{{ patient.pk }}">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="access-reason-title-{{ patient.pk }}">
-        <h3 id="access-reason-title-{{ patient.pk }}">Reason for access required</h3>
-        <p>Select a valid reason before opening the patient chart.</p>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+            <h3 id="access-reason-title-{{ patient.pk }}">Reason for Access Required</h3>
+            <button class="btn ghost btn-sm" data-close-modal aria-label="Close" style="padding:4px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <p>Select a valid reason before opening <strong>{{ patient.name }}</strong>'s chart. This is required for audit compliance.</p>
         <form method="post" action="{% url 'hrms-open-patient-record' patient.pk %}">
             {% csrf_token %}
             <div class="field">
-                <label>Access reason</label>
-                <select class="select" name="access_reason" required>
+                <label>Access reason <span style="color:var(--danger-500);">*</span></label>
+                <select name="access_reason" required>
                     <option value="">Select reason</option>
                     <option value="Direct patient care">Direct patient care</option>
                     <option value="Shift handover">Shift handover</option>
@@ -107,15 +137,16 @@
                 </select>
             </div>
             <div class="field">
-                <label>Additional note (optional)</label>
-                <textarea class="textarea" name="access_note" placeholder="Optional context for audit reviewers."></textarea>
+                <label>Additional note <span style="color:var(--gray-400);font-weight:400;">(optional)</span></label>
+                <textarea name="access_note" placeholder="Optional context for audit reviewers." style="min-height:66px;"></textarea>
             </div>
-            <div class="button-row">
+            <div class="button-row" style="margin-top:10px;">
                 <button class="btn" type="submit">Continue to Record</button>
-                <button class="btn secondary" type="button" data-close-modal>Cancel</button>
+                <button class="btn btn-secondary" type="button" data-close-modal>Cancel</button>
             </div>
         </form>
     </div>
 </div>
 {% endfor %}
+
 {% endblock %}

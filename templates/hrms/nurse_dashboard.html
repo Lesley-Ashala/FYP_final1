@@ -1,9 +1,11 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="grid kpi">
+
+<!-- KPI row -->
+<section class="grid kpi" style="margin-bottom:14px;">
     {% for kpi in kpis %}
-        <article class="card">
+        <article class="card" style="margin-bottom:0;">
             <p class="metric-label">{{ kpi.label }}</p>
             <p class="metric-value">{{ kpi.value }}</p>
             <p class="metric-trend">{{ kpi.trend }}</p>
@@ -11,86 +13,112 @@
     {% endfor %}
 </section>
 
-<section class="grid two" style="margin-top:14px;">
+<!-- Quick actions + Notifications -->
+<section class="grid two" style="margin-bottom:14px;">
     <article class="card">
         <div class="card-header">
             <div>
                 <h3 class="card-title">Quick Actions</h3>
-                <p class="card-note">Faster access to nurse workflows.</p>
+                <p class="card-note">Fast access to nurse workflows.</p>
             </div>
         </div>
-        <div class="button-row">
-            <a class="btn" href="{% url 'hrms-patient-search' %}">Search Patient</a>
-            <a class="btn secondary" href="{% url 'hrms-patient-record-default' %}?focus=vitals">Record Vitals</a>
-            <a class="btn secondary" href="{% url 'hrms-patient-record-default' %}?focus=notes">Add Nursing Note</a>
+        <div class="button-row" style="flex-wrap:wrap;">
+            <a class="btn" href="{% url 'hrms-patient-search' %}">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.2-4.2"/></svg>
+                Search Patient
+            </a>
+            <a class="btn btn-secondary" href="{% url 'hrms-patient-record-default' %}?focus=vitals">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                Record Vitals
+            </a>
+            <a class="btn btn-secondary" href="{% url 'hrms-patient-record-default' %}?focus=notes">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                Add Nursing Note
+            </a>
         </div>
-        <div class="notice" style="margin-top:12px;">
+        <div class="notice" style="margin-top:12px;margin-bottom:0;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;color:var(--brand-600);"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
             Every chart access prompts for reason and is logged automatically for compliance.
         </div>
     </article>
 
     <article class="card">
         <div class="card-header">
-            <div>
-                <h3 class="card-title">Notifications</h3>
-                <p class="card-note">Task and clinical alerts for this shift.</p>
-            </div>
+            <h3 class="card-title">Shift Notifications</h3>
+            <span class="badge medium">{{ notifications|length }}</span>
         </div>
-        <div class="grid">
+        <div style="display:grid;gap:6px;">
             {% for item in notifications %}
-                <div class="pill">{{ item.message }}</div>
+                <div class="pill" style="align-items:flex-start;padding:8px 12px;border-radius:var(--r-md);white-space:normal;height:auto;">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--brand-500)" stroke-width="2.5" style="flex-shrink:0;margin-top:2px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+                    <span style="font-size:0.78rem;">{{ item.message }}</span>
+                </div>
+            {% empty %}
+                <p style="font-size:0.8rem;color:var(--gray-400);text-align:center;padding:12px 0;">No pending notifications.</p>
             {% endfor %}
         </div>
     </article>
 </section>
 
-<section class="grid two" style="margin-top:14px;">
-    <article class="card">
-        <h3 class="card-title">Assigned Patients</h3>
-        <p class="card-note">Current assignment snapshot.</p>
-        <div class="table-wrap" style="margin-top:10px;">
-            <table>
-                <thead>
-                    <tr>
-                        <th>PatientRef</th>
-                        <th>Ward/Bed</th>
-                        <th>Status</th>
-                        <th>Next Task</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for patient in assigned_patients %}
-                        <tr>
-                            <td>{{ patient.patient_ref }}</td>
-                            <td>{{ patient.ward }} / {{ patient.bed }}</td>
-                            <td>
-                                {% if patient.status == "Stable" %}
-                                    <span class="badge success">{{ patient.status }}</span>
-                                {% elif patient.status == "Observation" %}
-                                    <span class="badge medium">{{ patient.status }}</span>
-                                {% else %}
-                                    <span class="badge high">{{ patient.status }}</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <a class="btn secondary" href="{% url 'hrms-patient-record' patient.pk %}">Open Chart</a>
-                            </td>
-                        </tr>
-                    {% empty %}
-                        <tr><td colspan="4">No assigned patients found.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+<!-- Assigned patients -->
+<section class="card" style="margin-bottom:14px;padding:0;overflow:hidden;">
+    <div class="card-header" style="padding:14px 16px 10px;">
+        <div>
+            <h3 class="card-title">Assigned Patients</h3>
+            <p class="card-note">Current shift assignment snapshot.</p>
         </div>
-    </article>
-
-    <article class="card">
-        <h3 class="card-title">Empty State Example</h3>
-        <p class="card-note">Shown when no assignments exist in selected range.</p>
-        <div class="empty-state" style="margin-top:10px;">
-            <h4>No patients assigned yet</h4>
-            <p>Check with charge nurse or refresh assignment board in a few minutes.</p>
-        </div>
-    </article>
+        <a href="{% url 'hrms-patient-search' %}" class="btn btn-secondary btn-sm">Search all</a>
+    </div>
+    <div class="table-wrap" role="region" aria-label="Assigned patients" style="border:none;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Patient Ref</th>
+                    <th>Ward / Bed</th>
+                    <th>Status</th>
+                    <th>Next Task</th>
+                    <th style="text-align:right;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for patient in assigned_patients %}
+                <tr>
+                    <td style="font-family:var(--font-mono);font-size:0.8rem;font-weight:600;color:var(--gray-800);">
+                        {{ patient.patient_ref }}
+                    </td>
+                    <td>
+                        <span style="font-size:0.8rem;">{{ patient.ward }}</span>
+                        <span style="color:var(--gray-400);font-size:0.76rem;"> / {{ patient.bed }}</span>
+                    </td>
+                    <td>
+                        {% if patient.status == "Stable" %}
+                            <span class="badge success">{{ patient.status }}</span>
+                        {% elif patient.status == "Observation" %}
+                            <span class="badge medium">{{ patient.status }}</span>
+                        {% else %}
+                            <span class="badge high">{{ patient.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-size:0.79rem;color:var(--gray-500);">{{ patient.next_task|default:"—" }}</td>
+                    <td style="text-align:right;">
+                        <a class="btn btn-secondary btn-sm" href="{% url 'hrms-patient-record' patient.pk %}">
+                            Open Chart
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5">
+                        <div class="empty-state" style="margin:8px;">
+                            <h4>No patients assigned yet</h4>
+                            <p>Check with charge nurse or refresh the assignment board.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </section>
+
 {% endblock %}

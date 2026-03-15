@@ -6,117 +6,116 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ page_title }} | {{ brand_name }}</title>
     <link rel="stylesheet" href="{% static 'monitoring/css/app.css' %}">
-    <style>
-        .modal-backdrop {
-            position: fixed;
-            inset: 0;
-            background: rgba(15, 23, 42, 0.48);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 40;
-            padding: 18px;
-        }
-
-        .modal-backdrop.open {
-            display: flex;
-        }
-
-        .modal {
-            width: min(580px, 96vw);
-            max-height: 90vh;
-            overflow: auto;
-            background: #fff;
-            border-radius: 14px;
-            border: 1px solid #d7e0ea;
-            box-shadow: 0 18px 42px rgba(15, 23, 42, 0.28);
-            padding: 16px;
-        }
-
-        .modal h3 {
-            margin: 0;
-            font-size: 1rem;
-        }
-
-        .modal p {
-            color: #475569;
-            font-size: 0.82rem;
-        }
-
-    </style>
 </head>
 <body>
-    <div class="app">
-        {% include "hrms/components/sidebar.html" %}
-        <div class="content">
-            {% include "hrms/components/topbar.html" %}
-            <main class="page">
-                {% block content %}{% endblock %}
-            </main>
-        </div>
+
+<!-- Mobile sidebar overlay -->
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+<div class="app">
+    <!-- ── Sidebar ── -->
+    {% include "hrms/components/sidebar.html" %}
+
+    <!-- ── Main content area ── -->
+    <div class="content">
+        {% include "hrms/components/topbar.html" %}
+
+        <main class="page" role="main">
+            {% if messages %}
+                <ul class="messages" role="status" aria-live="polite">
+                    {% for message in messages %}
+                        <li class="{{ message.tags }}">{{ message }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+            {% block content %}{% endblock %}
+        </main>
     </div>
+</div>
 
-    <div id="toast-host" class="toast-host"></div>
+<!-- Toast host -->
+<div id="toast-host" class="toast-host"></div>
 
-    <script>
-        (function () {
-            const toastHost = document.getElementById("toast-host");
-            function pushToast(message, tone) {
-                if (!toastHost) return;
-                const toast = document.createElement("div");
-                toast.className = "toast " + (tone || "success");
-                toast.textContent = message;
-                toastHost.appendChild(toast);
-                setTimeout(() => {
-                    toast.style.opacity = "0";
-                    toast.style.transform = "translateY(4px)";
-                }, 2600);
-                setTimeout(() => toast.remove(), 3200);
-            }
+<script>
+(function () {
+    /* ── Toast system ── */
+    const toastHost = document.getElementById("toast-host");
 
-            window.pushToast = pushToast;
+    function pushToast(message, tone) {
+        if (!toastHost) return;
+        const el = document.createElement("div");
+        el.className = "toast " + (tone || "info");
+        el.textContent = message;
+        toastHost.appendChild(el);
+        setTimeout(() => { el.style.opacity = "0"; el.style.transform = "translateY(6px)"; }, 2600);
+        setTimeout(() => el.remove(), 3000);
+    }
+    window.pushToast = pushToast;
 
-            document.querySelectorAll("[data-toast]").forEach((btn) => {
-                btn.addEventListener("click", () => {
-                    pushToast(btn.getAttribute("data-toast"), btn.getAttribute("data-tone"));
-                });
-            });
+    document.querySelectorAll("[data-toast]").forEach(btn => {
+        btn.addEventListener("click", () =>
+            pushToast(btn.getAttribute("data-toast"), btn.getAttribute("data-tone"))
+        );
+    });
 
-            document.querySelectorAll("[data-open-modal]").forEach((btn) => {
-                btn.addEventListener("click", () => {
-                    const modalId = btn.getAttribute("data-open-modal");
-                    const modal = document.getElementById(modalId);
-                    if (modal) modal.classList.add("open");
-                });
-            });
+    /* ── Server toasts (from DOM messages) ── */
+    document.querySelectorAll(".messages li").forEach(li => {
+        const text = (li.textContent || "").trim();
+        if (!text) return;
+        const tags = li.className || "";
+        const tone = tags.includes("error") ? "error"
+            : tags.includes("warning") ? "warning" : "success";
+        pushToast(text, tone);
+    });
 
-            document.querySelectorAll("[data-close-modal]").forEach((btn) => {
-                btn.addEventListener("click", () => {
-                    const modal = btn.closest(".modal-backdrop");
-                    if (modal) modal.classList.remove("open");
-                });
-            });
+    /* ── Modal system ── */
+    document.querySelectorAll("[data-open-modal]").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const id = btn.getAttribute("data-open-modal");
+            const modal = document.getElementById(id);
+            if (modal) modal.classList.add("open");
+        });
+    });
 
-            document.querySelectorAll(".modal-backdrop").forEach((backdrop) => {
-                backdrop.addEventListener("click", (evt) => {
-                    if (evt.target === backdrop) backdrop.classList.remove("open");
-                });
-            });
+    document.querySelectorAll("[data-close-modal]").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const modal = btn.closest(".modal-backdrop");
+            if (modal) modal.classList.remove("open");
+        });
+    });
 
-            const serverToasts = [
-                {% for message in messages %}
-                    {"text": "{{ message|escapejs }}", "tone": "{{ message.tags|default:'success'|escapejs }}"},
-                {% endfor %}
-            ];
-            serverToasts.forEach((item) => {
-                const tone = item.tone.includes("error")
-                    ? "error"
-                    : item.tone.includes("warning")
-                    ? "warning"
-                    : "success";
-                pushToast(item.text, tone);
-            });
-        })();
-    </script>
+    document.querySelectorAll(".modal-backdrop").forEach(backdrop => {
+        backdrop.addEventListener("click", e => {
+            if (e.target === backdrop) backdrop.classList.remove("open");
+        });
+    });
+
+    /* ── Mobile sidebar toggle ── */
+    const sidebar  = document.getElementById("app-sidebar");
+    const overlay  = document.getElementById("sidebar-overlay");
+    const hamburger = document.getElementById("sidebar-toggle");
+
+    function openSidebar() {
+        sidebar && sidebar.classList.add("open");
+        overlay && overlay.classList.add("open");
+        document.body.style.overflow = "hidden";
+    }
+    function closeSidebar() {
+        sidebar && sidebar.classList.remove("open");
+        overlay && overlay.classList.remove("open");
+        document.body.style.overflow = "";
+    }
+
+    hamburger && hamburger.addEventListener("click", openSidebar);
+    overlay   && overlay.addEventListener("click", closeSidebar);
+
+    /* Close sidebar on nav-item click (mobile) */
+    document.querySelectorAll(".nav-item").forEach(item => {
+        item.addEventListener("click", () => {
+            if (window.innerWidth < 769) closeSidebar();
+        });
+    });
+})();
+</script>
 </body>
 </html>

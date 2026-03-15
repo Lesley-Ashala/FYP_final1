@@ -1,17 +1,21 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="card">
-    <div class="card-header">
-        <div>
-            <h3 class="card-title">User Directory</h3>
-            <p class="card-note">Create and manage staff accounts with least-privilege defaults.</p>
-        </div>
-        <div class="button-row">
-            <button class="btn" data-open-modal="create-user-modal">Create User</button>
-        </div>
-    </div>
 
+<div class="page-header">
+    <div class="page-header-left">
+        <h1 class="page-title">User Directory</h1>
+        <p class="page-meta">Create and manage staff accounts with least-privilege defaults.</p>
+    </div>
+    <button class="btn" data-open-modal="create-user-modal">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        Create User
+    </button>
+</div>
+
+<div class="card" style="padding:0;overflow:hidden;">
     <div class="table-wrap" role="region" aria-label="User directory">
         <table>
             <thead>
@@ -22,71 +26,94 @@
                     <th>Department</th>
                     <th>Status</th>
                     <th>Last Login</th>
-                    <th>Actions</th>
+                    <th style="text-align:right;">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for user in users %}
-                    <tr>
-                        <td>{{ user.name }}</td>
-                        <td>{{ user.staff_id }}</td>
-                        <td>
-                            <form method="post" action="{% url 'hrms-user-assign-role' user.id %}" style="display:flex; gap:6px; align-items:center;">
-                                {% csrf_token %}
-                                <select class="select" name="role" style="min-width:145px;">
-                                    {% for role in roles_for_assignment %}
-                                        <option value="{{ role.key }}" {% if role.key == user.role_key %}selected{% endif %}>{{ role.label }}</option>
-                                    {% endfor %}
-                                </select>
-                                <button class="btn secondary" type="submit">Assign</button>
-                            </form>
-                        </td>
-                        <td>{{ user.department }}</td>
-                        <td>
-                            {% if user.status == "Active" %}
-                                <span class="badge success">{{ user.status }}</span>
-                            {% else %}
-                                <span class="badge denied">{{ user.status }}</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ user.last_login }}</td>
-                        <td>
-                            <div class="button-row">
-                                <form method="post" action="{% url 'hrms-user-reset-password' user.id %}">
-                                    {% csrf_token %}
-                                    <button class="btn secondary" type="submit">Reset</button>
-                                </form>
-                                {% if user.status == "Active" %}
-                                    <button class="btn danger" data-open-modal="disable-user-modal-{{ user.id }}">Disable</button>
-                                {% endif %}
+                <tr>
+                    <td>
+                        <div style="display:flex;align-items:center;gap:9px;">
+                            <div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--brand-400),var(--brand-700));display:grid;place-items:center;color:#fff;font-size:0.68rem;font-weight:700;flex-shrink:0;">
+                                {{ user.name|slice:":2"|upper }}
                             </div>
-                        </td>
-                    </tr>
+                            <span style="font-weight:600;color:var(--gray-900);">{{ user.name }}</span>
+                        </div>
+                    </td>
+                    <td style="font-family:var(--font-mono);font-size:0.78rem;color:var(--gray-500);">{{ user.staff_id }}</td>
+                    <td>
+                        <form method="post" action="{% url 'hrms-user-assign-role' user.id %}"
+                              style="display:flex;gap:6px;align-items:center;">
+                            {% csrf_token %}
+                            <select name="role" style="min-width:130px;margin:0;">
+                                {% for role in roles_for_assignment %}
+                                    <option value="{{ role.key }}" {% if role.key == user.role_key %}selected{% endif %}>
+                                        {{ role.label }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <button class="btn btn-secondary btn-sm" type="submit">Assign</button>
+                        </form>
+                    </td>
+                    <td>{{ user.department }}</td>
+                    <td>
+                        {% if user.status == "Active" %}
+                            <span class="badge success">{{ user.status }}</span>
+                        {% else %}
+                            <span class="badge denied">{{ user.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-size:0.78rem;color:var(--gray-500);">{{ user.last_login }}</td>
+                    <td>
+                        <div class="actions" style="justify-content:flex-end;">
+                            <form method="post" action="{% url 'hrms-user-reset-password' user.id %}">
+                                {% csrf_token %}
+                                <button class="btn btn-secondary btn-sm" type="submit">
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                                    Reset
+                                </button>
+                            </form>
+                            {% if user.status == "Active" %}
+                                <button class="btn btn-danger btn-sm"
+                                        data-open-modal="disable-user-modal-{{ user.id }}">
+                                    Disable
+                                </button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
-</section>
+</div>
 
+<!-- Create User Modal -->
 <div class="modal-backdrop" id="create-user-modal">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="create-user-title">
-        <h3 id="create-user-title">Create user</h3>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+            <h3 id="create-user-title">Create User Account</h3>
+            <button class="btn ghost btn-sm" data-close-modal aria-label="Close" style="padding:4px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
         <p>New account will receive temporary credentials and role-based access permissions.</p>
+
         <form method="post" action="{% url 'hrms-user-create' %}">
             {% csrf_token %}
             <div class="grid two">
                 <div class="field">
                     <label>Full name</label>
-                    <input class="input" name="full_name" placeholder="e.g., Priya D'Souza" required>
+                    <input name="full_name" placeholder="e.g., Priya D'Souza" required>
                 </div>
                 <div class="field">
                     <label>Staff ID</label>
-                    <input class="input" name="staff_id" placeholder="e.g., NUR-1198" required>
-                    <p class="helper">Must be unique in the user directory.</p>
+                    <input name="staff_id" placeholder="e.g., NUR-1198" required>
+                    <p class="helper">Must be unique in the directory.</p>
                 </div>
                 <div class="field">
                     <label>Role</label>
-                    <select class="select" name="role">
+                    <select name="role">
                         {% for role in roles_for_assignment %}
                             <option value="{{ role.key }}">{{ role.label }}</option>
                         {% endfor %}
@@ -94,45 +121,55 @@
                 </div>
                 <div class="field">
                     <label>Department</label>
-                    <input class="input" name="department" placeholder="e.g., Ward C">
+                    <input name="department" placeholder="e.g., Ward C">
                 </div>
                 <div class="field">
                     <label>Email</label>
-                    <input class="input" name="email" placeholder="name@hospital.local">
+                    <input name="email" type="email" placeholder="name@hospital.local">
                 </div>
                 <div class="field">
                     <label>Status</label>
-                    <select class="select" name="status">
+                    <select name="status">
                         <option value="active">Active</option>
                         <option value="suspended">Suspended</option>
                     </select>
                 </div>
             </div>
-            <div class="button-row" style="margin-top:10px;">
+            <div class="button-row" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
                 <button class="btn" type="submit">Create User</button>
-                <button class="btn secondary" type="button" data-close-modal>Cancel</button>
+                <button class="btn btn-secondary" type="button" data-close-modal>Cancel</button>
             </div>
         </form>
     </div>
 </div>
 
+<!-- Disable User Modals -->
 {% for user in users %}
-    <div class="modal-backdrop" id="disable-user-modal-{{ user.id }}">
-        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="disable-user-title-{{ user.id }}">
-            <h3 id="disable-user-title-{{ user.id }}">Disable user account</h3>
-            <p>Confirm disabling {{ user.staff_id }}. Active sessions will be terminated immediately.</p>
-            <form method="post" action="{% url 'hrms-user-disable' user.id %}">
-                {% csrf_token %}
-                <div class="field">
-                    <label>Reason</label>
-                    <textarea class="textarea" name="reason" placeholder="Provide reason for disablement to include in audit log."></textarea>
-                </div>
-                <div class="button-row">
-                    <button class="btn danger" type="submit">Confirm Disable</button>
-                    <button class="btn secondary" type="button" data-close-modal>Cancel</button>
-                </div>
-            </form>
+<div class="modal-backdrop" id="disable-user-modal-{{ user.id }}">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="disable-user-title-{{ user.id }}">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+            <h3 id="disable-user-title-{{ user.id }}">Disable User Account</h3>
+            <button class="btn ghost btn-sm" data-close-modal aria-label="Close" style="padding:4px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
         </div>
+        <p>Confirm disabling <strong>{{ user.staff_id }}</strong>. Active sessions will be terminated immediately.</p>
+        <div class="notice error" style="margin-bottom:14px;">
+            This action is audited. The user will lose all system access immediately.
+        </div>
+        <form method="post" action="{% url 'hrms-user-disable' user.id %}">
+            {% csrf_token %}
+            <div class="field">
+                <label>Reason for disablement</label>
+                <textarea name="reason" placeholder="Provide reason for audit log."></textarea>
+            </div>
+            <div class="button-row" style="margin-top:10px;">
+                <button class="btn btn-danger" type="submit">Confirm Disable</button>
+                <button class="btn btn-secondary" type="button" data-close-modal>Cancel</button>
+            </div>
+        </form>
     </div>
+</div>
 {% endfor %}
+
 {% endblock %}

@@ -1,17 +1,38 @@
 {% extends "base.html" %}
 
 {% block content %}
-<header class="page-header">
-    <h1 class="page-title">{% if object %}Edit Patient Record{% else %}Create Patient Record{% endif %}</h1>
-    <p class="page-meta">All changes are logged and monitored for anomalous activity.</p>
-</header>
 
-<div class="card">
+<div class="page-header">
+    <div class="page-header-left">
+        <h1 class="page-title">{% if object %}Edit Patient Record{% else %}New Patient Record{% endif %}</h1>
+        <p class="page-meta">All changes are logged and monitored for anomalous activity.</p>
+    </div>
+    <a class="btn btn-secondary" href="{% url 'patient-list' %}">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+        Back to list
+    </a>
+</div>
+
+<div class="card" style="max-width:680px;">
+    {% if object %}
+        <div class="notice" style="margin-bottom:16px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:5px;color:var(--brand-600);"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            Editing record for <strong>{{ object.full_name }}</strong> ({{ object.hospital_id }}).
+            This change will be fully audited.
+        </div>
+    {% endif %}
+
     <form method="post">
         {% csrf_token %}
         {{ form.as_p }}
-        <button type="submit" class="btn">Save</button>
-        <a href="{% url 'patient-list' %}" class="btn btn-secondary">Cancel</a>
+        <div class="button-row" style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border);">
+            <button type="submit" class="btn">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                Save Record
+            </button>
+            <a href="{% url 'patient-list' %}" class="btn btn-secondary">Cancel</a>
+        </div>
     </form>
 </div>
+
 {% endblock %}

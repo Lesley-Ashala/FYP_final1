@@ -1,4 +1,6 @@
-<aside class="sidebar">
+<aside class="sidebar" id="app-sidebar" role="navigation" aria-label="Sidebar navigation">
+
+    <!-- Brand -->
     <div class="brand">
         <div class="brand-logo">HSR</div>
         <div>
@@ -7,24 +9,30 @@
         </div>
     </div>
 
+    <!-- Navigation -->
     <div class="nav-group">
         <p class="nav-label">Navigation</p>
         {% for item in nav_items %}
-            <a href="{% url item.url_name %}" class="nav-item {% if active_url_name == item.url_name %}active{% endif %}">
+            <a href="{% url item.url_name %}"
+               class="nav-item {% if active_url_name == item.url_name %}active{% endif %}"
+               aria-current="{% if active_url_name == item.url_name %}page{% endif %}">
                 {% include "hrms/components/icon.html" with icon=item.icon %}
                 <span>{{ item.label }}</span>
             </a>
         {% endfor %}
     </div>
 
+    <!-- Security status -->
     <div class="nav-footnote">
-        <strong>Security Status</strong><br>
+        <strong>Security Status</strong>
         Last policy sync: 09:10 UTC<br>
-        Endpoint posture: compliant
+        Endpoint posture: <span style="color:var(--success-500);font-weight:600;">compliant</span>
     </div>
 
+    <!-- Role info -->
     <div class="nav-footnote">
-        <strong>RBAC Role</strong><br>
+        <strong>Active Role</strong>
         {{ demo_role_label }}
     </div>
+
 </aside>

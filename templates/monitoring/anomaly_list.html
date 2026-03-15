@@ -1,61 +1,106 @@
 {% extends "base.html" %}
 
 {% block content %}
-<header class="page-header">
-    <h1 class="page-title">Flagged Anomalies</h1>
-    <p class="page-meta">Events classified as abnormal by Isolation Forest.</p>
-</header>
 
-<div class="card">
+<div class="page-header">
+    <div class="page-header-left">
+        <h1 class="page-title">Flagged Anomalies</h1>
+        <p class="page-meta">Events classified as abnormal by the Isolation Forest detection model.</p>
+    </div>
+</div>
+
+<div class="card" style="padding:0;overflow:hidden;">
     <div class="table-wrap" role="region" aria-label="Flagged anomaly access events">
-    <table>
-        <thead>
-            <tr>
-                <th>Time</th>
-                <th>User</th>
-                <th>Role</th>
-                <th>Patient</th>
-                <th>Action</th>
-                <th>Anomaly Score</th>
-                <th>Risk Score</th>
-                <th>Severity</th>
-                <th>Status</th>
-                <th>True Anomaly Label</th>
-                <th>Notes</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for log in logs %}
-            <tr>
-                <td>{{ log.accessed_at }}</td>
-                <td>{{ log.user.username }}</td>
-                <td>{{ log.role_snapshot }}</td>
-                <td>{% if log.patient_record %}{{ log.patient_record.hospital_id }}{% else %}-{% endif %}</td>
-                <td>{{ log.action }}</td>
-                <td>{{ log.anomaly_score|floatformat:4 }}</td>
-                <td>{{ log.risk_score|floatformat:2 }}</td>
-                <td>{{ log.alert_severity|default:"-" }}</td>
-                <td>{{ log.alert_status|default:"-" }}</td>
-                <td>{{ log.is_true_anomaly|yesno:"Yes,No" }}</td>
-                <td>{{ log.notes|default:"-" }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="11">No anomalies flagged yet.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+        <table>
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>User</th>
+                    <th>Role</th>
+                    <th>Patient</th>
+                    <th>Action</th>
+                    <th>Anomaly Score</th>
+                    <th>Risk Score</th>
+                    <th>Severity</th>
+                    <th>Status</th>
+                    <th>True Anomaly</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td style="font-family:var(--font-mono);font-size:0.76rem;color:var(--gray-500);">{{ log.accessed_at }}</td>
+                    <td style="font-weight:600;color:var(--gray-800);">{{ log.user.username }}</td>
+                    <td><span class="badge info" style="font-size:0.64rem;">{{ log.role_snapshot }}</span></td>
+                    <td style="font-family:var(--font-mono);font-size:0.78rem;">
+                        {% if log.patient_record %}{{ log.patient_record.hospital_id }}{% else %}—{% endif %}
+                    </td>
+                    <td>{{ log.action }}</td>
+                    <td>
+                        {% if log.anomaly_score > 0.7 %}
+                        <span style="font-family:var(--font-mono);font-size:0.78rem;color:var(--danger-500);font-weight:700;">
+                        {% elif log.anomaly_score > 0.4 %}
+                        <span style="font-family:var(--font-mono);font-size:0.78rem;color:var(--warning-500);font-weight:600;">
+                        {% else %}
+                        <span style="font-family:var(--font-mono);font-size:0.78rem;color:var(--gray-600);">
+                        {% endif %}
+                            {{ log.anomaly_score|floatformat:4 }}
+                        </span>
+                    </td>
+                    <td style="font-family:var(--font-mono);font-size:0.78rem;">{{ log.risk_score|floatformat:2 }}</td>
+                    <td>
+                        {% if log.alert_severity %}
+                            <span class="badge {{ log.alert_severity|lower }}">{{ log.alert_severity }}</span>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if log.alert_status %}
+                            <span class="badge {{ log.alert_status|lower }}">{{ log.alert_status }}</span>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if log.is_true_anomaly %}
+                            <span class="badge critical">Yes</span>
+                        {% else %}
+                            <span style="color:var(--gray-300);font-size:0.78rem;">—</span>
+                        {% endif %}
+                    </td>
+                    <td style="max-width:200px;white-space:normal;font-size:0.78rem;color:var(--gray-500);">
+                        {{ log.notes|default:"—"|truncatechars:60 }}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="11">
+                        <div class="empty-state" style="margin:8px;">
+                            <h4>No anomalies flagged yet</h4>
+                            <p>Run the Isolation Forest detection from the dashboard to flag anomalous events.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
 
 {% if is_paginated %}
-<div class="card">
+<div class="pagination">
     {% if page_obj.has_previous %}
-        <a class="btn btn-secondary" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+        <a class="btn btn-secondary btn-sm" href="?page={{ page_obj.previous_page_number }}">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+            Previous
+        </a>
     {% endif %}
-    <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    <span style="font-size:0.82rem;color:var(--gray-500);">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
     {% if page_obj.has_next %}
-        <a class="btn btn-secondary" href="?page={{ page_obj.next_page_number }}">Next</a>
+        <a class="btn btn-secondary btn-sm" href="?page={{ page_obj.next_page_number }}">
+            Next
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+        </a>
     {% endif %}
 </div>
 {% endif %}
+
 {% endblock %}

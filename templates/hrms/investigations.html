@@ -1,89 +1,138 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="grid two">
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1 class="page-title">Investigations</h1>
+        <p class="page-meta">Formal investigation cases linked to triaged security alerts.</p>
+    </div>
+</div>
+
+<div class="grid two" style="align-items:start;">
+
+    <!-- Case detail -->
     <article class="card">
         {% if selected_case %}
             <div class="card-header">
                 <div>
-                    <h3 class="card-title">Case Overview - {{ selected_case.case_reference }}</h3>
+                    <h3 class="card-title">{{ selected_case.case_reference }}</h3>
                     <p class="card-note">{{ selected_case.title }}</p>
                 </div>
                 <span class="badge {% if selected_case.status == 'closed' %}closed{% elif selected_case.status == 'in_review' %}triaged{% else %}open{% endif %}">
                     {{ selected_case.status|title }}
                 </span>
             </div>
-            <div class="grid">
-                <div class="pill">Owner: {{ selected_case.owner.get_full_name|default:selected_case.owner.username|default:"Unassigned" }}</div>
-                <div class="pill">Opened: {{ selected_case.opened_at|date:"Y-m-d H:i" }}</div>
-                <div class="pill">Linked alerts: {{ linked_alerts|length }}</div>
-            </div>
-            <p class="card-note" style="margin-top:10px;">{{ selected_case.summary|default:"No summary provided." }}</p>
 
-            <form method="post" action="{% url 'hrms-add-case-note' selected_case.id %}" style="margin-top:12px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+                <div class="pill" style="justify-content:space-between;">
+                    <span style="color:var(--gray-400);font-size:0.72rem;">Owner</span>
+                    <strong style="font-size:0.78rem;">{{ selected_case.owner.get_full_name|default:selected_case.owner.username|default:"Unassigned" }}</strong>
+                </div>
+                <div class="pill" style="justify-content:space-between;">
+                    <span style="color:var(--gray-400);font-size:0.72rem;">Opened</span>
+                    <strong style="font-size:0.78rem;">{{ selected_case.opened_at|date:"Y-m-d" }}</strong>
+                </div>
+                <div class="pill" style="justify-content:space-between;">
+                    <span style="color:var(--gray-400);font-size:0.72rem;">Linked alerts</span>
+                    <strong style="font-size:0.78rem;">{{ linked_alerts|length }}</strong>
+                </div>
+            </div>
+
+            <p style="font-size:0.83rem;color:var(--gray-500);line-height:1.6;margin-bottom:14px;">
+                {{ selected_case.summary|default:"No summary provided." }}
+            </p>
+
+            <form method="post" action="{% url 'hrms-add-case-note' selected_case.id %}">
                 {% csrf_token %}
                 <div class="field">
                     <label>Add case note</label>
-                    <textarea class="textarea" name="note" placeholder="Log forensic notes, stakeholder updates, and corrective actions."></textarea>
+                    <textarea name="note"
+                              placeholder="Log forensic notes, stakeholder updates, and corrective actions."></textarea>
                 </div>
                 <div class="button-row">
                     <button class="btn" type="submit">Add Note</button>
-                    <a class="btn secondary" href="{% url 'hrms-alerts' %}">Open Alerts</a>
+                    <a class="btn btn-secondary" href="{% url 'hrms-alerts' %}">Open Alerts</a>
+                    <button class="btn btn-danger" type="button" data-open-modal="close-case-modal">Close Case</button>
                 </div>
             </form>
+
+            {% if not can_export_audit %}
+                <p class="helper error" style="margin-top:10px;">
+                    Export report permission is not available for your role.
+                </p>
+            {% endif %}
+
         {% else %}
             <div class="empty-state">
-                <h4>No active investigation cases</h4>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--gray-300)" stroke-width="1.5" style="margin:0 auto 10px;display:block;"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.2-4.2M11 8v3l2 2"/></svg>
+                <h4>No active investigation</h4>
                 <p>Triage an alert to create or attach it to an investigation case.</p>
             </div>
         {% endif %}
     </article>
 
+    <!-- Case list -->
     <article class="card">
-        <h3 class="card-title">Case List</h3>
-        <div class="table-wrap" style="margin-top:10px;" role="region" aria-label="Investigation case list">
+        <div class="card-header">
+            <h3 class="card-title">Case List</h3>
+            {% if selected_case and can_export_audit %}
+                <a class="btn btn-secondary btn-sm" href="{% url 'hrms-export-case-report' selected_case.id %}">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Export Report
+                </a>
+            {% endif %}
+        </div>
+        <div class="table-wrap" role="region" aria-label="Investigation case list">
             <table>
                 <thead>
                     <tr>
-                        <th>Case</th>
+                        <th>Case Ref</th>
                         <th>Status</th>
                         <th>Owner</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for case in cases %}
-                        <tr>
-                            <td><a href="{% url 'hrms-investigations' %}?case={{ case.case_reference }}">{{ case.case_reference }}</a></td>
-                            <td>{{ case.status|title }}</td>
-                            <td>{{ case.owner.username|default:"-" }}</td>
-                        </tr>
+                    <tr>
+                        <td>
+                            <a href="{% url 'hrms-investigations' %}?case={{ case.case_reference }}"
+                               style="font-family:var(--font-mono);font-size:0.8rem;color:var(--brand-600);font-weight:600;">
+                                {{ case.case_reference }}
+                            </a>
+                        </td>
+                        <td>
+                            <span class="badge {% if case.status == 'closed' %}closed{% elif case.status == 'in_review' %}triaged{% else %}open{% endif %}">
+                                {{ case.status|title }}
+                            </span>
+                        </td>
+                        <td style="font-size:0.8rem;">{{ case.owner.username|default:"—" }}</td>
+                    </tr>
                     {% empty %}
-                        <tr><td colspan="3">No cases available.</td></tr>
+                    <tr>
+                        <td colspan="3">
+                            <div class="empty-state" style="margin:6px;">
+                                <h4>No cases yet</h4>
+                                <p>Cases are created when alerts are triaged.</p>
+                            </div>
+                        </td>
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-
-        {% if selected_case %}
-            <div class="button-row" style="margin-top:12px;">
-                <button class="btn danger" type="button" data-open-modal="close-case-modal">Close Case</button>
-                {% if can_export_audit %}
-                    <a class="btn secondary" href="{% url 'hrms-export-case-report' selected_case.id %}">Export Report</a>
-                {% else %}
-                    <button class="btn secondary disabled" disabled>Export Report</button>
-                {% endif %}
-            </div>
-            {% if not can_export_audit %}
-                <p class="helper error" style="margin-top:8px;">Export report permission is not available for your role.</p>
-            {% endif %}
-        {% endif %}
     </article>
-</section>
+</div>
 
 {% if selected_case %}
-<section class="card" style="margin-top:14px;">
-    <h3 class="card-title">Related Alerts</h3>
-    <div class="table-wrap" style="margin-top:10px;" role="region" aria-label="Alerts linked to selected case">
+
+<!-- Related alerts -->
+<section class="card" style="margin-top:14px;padding:0;overflow:hidden;">
+    <div class="card-header" style="padding:14px 16px 10px;">
+        <h3 class="card-title">Related Alerts</h3>
+        <span class="badge info">{{ linked_alerts|length }}</span>
+    </div>
+    <div class="table-wrap" role="region" aria-label="Alerts linked to selected case" style="border:none;">
         <table>
             <thead>
                 <tr>
@@ -97,25 +146,28 @@
             </thead>
             <tbody>
                 {% for alert in linked_alerts %}
-                    <tr>
-                        <td>{{ alert.accessed_at|date:"Y-m-d H:i:s" }}</td>
-                        <td>ALT-{{ alert.id|stringformat:"05d" }}</td>
-                        <td>{{ alert.patient_record.hospital_id|default:"-" }}</td>
-                        <td>{{ alert.risk_score|default:"-" }}</td>
-                        <td>{{ alert.alert_status|title }}</td>
-                        <td>{{ alert.notes|default:"-" }}</td>
-                    </tr>
+                <tr>
+                    <td style="font-family:var(--font-mono);font-size:0.76rem;color:var(--gray-500);">{{ alert.accessed_at|date:"Y-m-d H:i" }}</td>
+                    <td style="font-family:var(--font-mono);font-size:0.78rem;font-weight:600;">ALT-{{ alert.id|stringformat:"05d" }}</td>
+                    <td style="font-family:var(--font-mono);font-size:0.78rem;">{{ alert.patient_record.hospital_id|default:"—" }}</td>
+                    <td style="font-family:var(--font-mono);font-size:0.78rem;">{{ alert.risk_score|default:"—" }}</td>
+                    <td><span class="badge {{ alert.alert_status|lower }}">{{ alert.alert_status|title }}</span></td>
+                    <td style="font-size:0.79rem;color:var(--gray-600);max-width:200px;white-space:normal;">{{ alert.notes|default:"—" }}</td>
+                </tr>
                 {% empty %}
-                    <tr><td colspan="6">No alerts linked to this case.</td></tr>
+                <tr><td colspan="6" style="text-align:center;color:var(--gray-400);padding:14px;">No alerts linked to this case.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </section>
 
-<section class="card" style="margin-top:14px;">
-    <h3 class="card-title">Case Notes</h3>
-    <div class="table-wrap" style="margin-top:10px;" role="region" aria-label="Case notes timeline">
+<!-- Case notes -->
+<section class="card" style="margin-top:14px;padding:0;overflow:hidden;">
+    <div class="card-header" style="padding:14px 16px 10px;">
+        <h3 class="card-title">Case Notes Timeline</h3>
+    </div>
+    <div class="table-wrap" role="region" aria-label="Case notes timeline" style="border:none;">
         <table>
             <thead>
                 <tr>
@@ -126,28 +178,37 @@
             </thead>
             <tbody>
                 {% for note in case_notes %}
-                    <tr>
-                        <td>{{ note.created_at|date:"Y-m-d H:i" }}</td>
-                        <td>{{ note.author.username|default:"system" }}</td>
-                        <td>{{ note.note }}</td>
-                    </tr>
+                <tr>
+                    <td style="font-family:var(--font-mono);font-size:0.76rem;color:var(--gray-500);">{{ note.created_at|date:"Y-m-d H:i" }}</td>
+                    <td style="font-weight:600;font-size:0.8rem;">{{ note.author.username|default:"system" }}</td>
+                    <td style="font-size:0.82rem;color:var(--gray-600);white-space:normal;max-width:400px;">{{ note.note }}</td>
+                </tr>
                 {% empty %}
-                    <tr><td colspan="3">No notes added yet.</td></tr>
+                <tr><td colspan="3" style="text-align:center;color:var(--gray-400);padding:14px;">No notes added yet.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </section>
 
+<!-- Close Case Modal -->
 <div class="modal-backdrop" id="close-case-modal">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="close-case-title">
-        <h3 id="close-case-title">Close investigation case</h3>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+            <h3 id="close-case-title">Close Investigation Case</h3>
+            <button class="btn ghost btn-sm" data-close-modal aria-label="Close" style="padding:4px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
         <p>Confirm final disposition. This action is audited and immutable.</p>
+        <div class="notice warning" style="margin-bottom:14px;">
+            Closing a case is permanent. Ensure all linked alerts are resolved.
+        </div>
         <form method="post" action="{% url 'hrms-close-case' selected_case.id %}">
             {% csrf_token %}
             <div class="field">
                 <label>Disposition</label>
-                <select class="select" name="disposition">
+                <select name="disposition">
                     <option>Confirmed policy violation</option>
                     <option>False positive</option>
                     <option>Training required</option>
@@ -155,14 +216,17 @@
             </div>
             <div class="field">
                 <label>Closure note</label>
-                <textarea class="textarea" name="closure_note" placeholder="Summarize findings, containment, and preventive action."></textarea>
+                <textarea name="closure_note"
+                          placeholder="Summarize findings, containment, and preventive actions."></textarea>
             </div>
-            <div class="button-row">
+            <div class="button-row" style="margin-top:12px;">
                 <button class="btn" type="submit">Confirm Closure</button>
-                <button class="btn secondary" type="button" data-close-modal>Cancel</button>
+                <button class="btn btn-secondary" type="button" data-close-modal>Cancel</button>
             </div>
         </form>
     </div>
 </div>
+
 {% endif %}
+
 {% endblock %}

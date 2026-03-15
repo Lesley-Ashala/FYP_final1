@@ -1,64 +1,95 @@
 {% extends "base.html" %}
 
 {% block content %}
-<header class="page-header">
-    <h1 class="page-title">Patient Records</h1>
-    <p class="page-meta">Total logs: {{ total_access_logs }} · Flagged anomalies: {{ flagged_logs }}</p>
-</header>
 
-<div class="card">
+<div class="page-header">
+    <div class="page-header-left">
+        <h1 class="page-title">Patient Records</h1>
+        <p class="page-meta">
+            {{ total_access_logs }} total access events &nbsp;·&nbsp;
+            <span style="color:var(--danger-500);font-weight:600;">{{ flagged_logs }} flagged anomalies</span>
+        </p>
+    </div>
     {% if user_role == "doctor" or user_role == "admin" %}
-        <div class="button-row" style="margin-bottom:0.25rem;">
-            <a class="btn" href="{% url 'patient-create' %}">Create Patient Record</a>
-        </div>
+        <a class="btn" href="{% url 'patient-create' %}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            New Patient Record
+        </a>
     {% endif %}
+</div>
+
+<div class="card" style="padding:0;overflow:hidden;">
     <div class="table-wrap" role="region" aria-label="Patient records">
         <table>
-        <thead>
-            <tr>
-                <th>Hospital ID</th>
-                <th>Name</th>
-                <th>DOB</th>
-                <th>Diagnosis</th>
-                <th>Attending Doctor</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for patient in patients %}
+            <thead>
                 <tr>
-                    <td>{{ patient.hospital_id }}</td>
-                    <td>{{ patient.full_name }}</td>
-                    <td>{{ patient.date_of_birth }}</td>
-                    <td>{{ patient.diagnosis|truncatechars:60 }}</td>
-                    <td>{{ patient.attending_doctor|default:"-" }}</td>
-                    <td class="actions">
-                        <a class="btn btn-secondary" href="{% url 'patient-detail' patient.pk %}">View</a>
-                        {% if user_role == "doctor" or user_role == "admin" %}
-                            <a class="btn" href="{% url 'patient-update' patient.pk %}">Edit</a>
-                        {% endif %}
-                        {% if user_role == "admin" %}
-                            <a class="btn btn-danger" href="{% url 'patient-delete' patient.pk %}">Delete</a>
-                        {% endif %}
-                    </td>
+                    <th>Hospital ID</th>
+                    <th>Name</th>
+                    <th>Date of Birth</th>
+                    <th>Diagnosis</th>
+                    <th>Attending Doctor</th>
+                    <th style="text-align:right;">Actions</th>
                 </tr>
-            {% empty %}
-                <tr><td colspan="6">No patient records yet.</td></tr>
-            {% endfor %}
-        </tbody>
+            </thead>
+            <tbody>
+                {% for patient in patients %}
+                    <tr>
+                        <td>
+                            <span style="font-family:var(--font-mono);font-size:0.78rem;color:var(--gray-500);">
+                                {{ patient.hospital_id }}
+                            </span>
+                        </td>
+                        <td>
+                            <span style="font-weight:600;color:var(--gray-900);">{{ patient.full_name }}</span>
+                        </td>
+                        <td>{{ patient.date_of_birth }}</td>
+                        <td>
+                            <span title="{{ patient.diagnosis }}">{{ patient.diagnosis|truncatechars:55 }}</span>
+                        </td>
+                        <td>{{ patient.attending_doctor|default:"—" }}</td>
+                        <td>
+                            <div class="actions" style="justify-content:flex-end;">
+                                <a class="btn btn-secondary btn-sm" href="{% url 'patient-detail' patient.pk %}">View</a>
+                                {% if user_role == "doctor" or user_role == "admin" %}
+                                    <a class="btn btn-sm" href="{% url 'patient-update' patient.pk %}">Edit</a>
+                                {% endif %}
+                                {% if user_role == "admin" %}
+                                    <a class="btn btn-danger btn-sm" href="{% url 'patient-delete' patient.pk %}">Delete</a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6">
+                            <div class="empty-state" style="margin:6px;">
+                                <h4>No patient records yet</h4>
+                                <p>Create the first record to get started.</p>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
         </table>
     </div>
 </div>
 
 {% if is_paginated %}
-<div class="card">
+<div class="pagination">
     {% if page_obj.has_previous %}
-        <a class="btn btn-secondary" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+        <a class="btn btn-secondary btn-sm" href="?page={{ page_obj.previous_page_number }}">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+            Previous
+        </a>
     {% endif %}
     <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
     {% if page_obj.has_next %}
-        <a class="btn btn-secondary" href="?page={{ page_obj.next_page_number }}">Next</a>
+        <a class="btn btn-secondary btn-sm" href="?page={{ page_obj.next_page_number }}">
+            Next
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+        </a>
     {% endif %}
 </div>
 {% endif %}
+
 {% endblock %}

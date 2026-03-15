@@ -1,150 +1,203 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="notice">
-    <strong>Audit Notice:</strong> This access will be logged. Reason, timestamp, and user identity are attached to this chart session.
-    {% if last_access_reason %}<br><strong>Reason captured:</strong> {{ last_access_reason }}{% endif %}
-</section>
 
-<section class="card">
+<!-- Audit notice banner -->
+<div class="notice" style="margin-bottom:14px;display:flex;align-items:center;gap:10px;">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--brand-600)" stroke-width="2" style="flex-shrink:0;">
+        <path d="M12 2 4 6v6c0 5 3.5 9.7 8 10 4.5-.3 8-5 8-10V6l-8-4Z"/>
+    </svg>
+    <span>
+        <strong>Audit Notice:</strong> This access is logged. Reason, timestamp, and user identity are attached to this session.
+        {% if last_access_reason %} &nbsp;·&nbsp; <strong>Reason:</strong> {{ last_access_reason }}{% endif %}
+    </span>
+</div>
+
+<!-- Patient header card -->
+<section class="card" style="margin-bottom:14px;">
     <div class="card-header">
         <div>
-            <h3 class="card-title">{{ patient_meta.patient_ref }} - {{ patient.full_name }}</h3>
-            <p class="card-note">{{ patient_meta.ward }} / {{ patient_meta.bed }} - Age {{ patient_meta.age }} - Primary clinician: {{ patient_meta.clinician }}</p>
+            <h3 class="card-title">{{ patient_meta.patient_ref }} — {{ patient.full_name }}</h3>
+            <p class="card-note">
+                {{ patient_meta.ward }} / Bed {{ patient_meta.bed }} &nbsp;·&nbsp;
+                Age {{ patient_meta.age }} &nbsp;·&nbsp;
+                Clinician: {{ patient_meta.clinician }}
+            </p>
         </div>
-        <span class="badge info">Nurse View</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+            {% if patient_meta.status == "Stable" %}
+                <span class="badge success">{{ patient_meta.status }}</span>
+            {% elif patient_meta.status == "Observation" %}
+                <span class="badge medium">{{ patient_meta.status }}</span>
+            {% else %}
+                <span class="badge high">{{ patient_meta.status }}</span>
+            {% endif %}
+            <span class="badge info">Nurse View</span>
+        </div>
     </div>
-    <div class="tabs">
+
+    <!-- Tab bar -->
+    <div class="tabs" style="margin-bottom:0;">
         <span class="tab active">Overview</span>
         <span class="tab">Vitals</span>
         <span class="tab">Nursing Notes</span>
-        <span class="tab">Medications (read-only)</span>
-        <span class="tab">Lab Results (read-only)</span>
+        <span class="tab" style="color:var(--gray-300);">Medications (read-only)</span>
+        <span class="tab" style="color:var(--gray-300);">Lab Results (read-only)</span>
         <span class="tab">Documents</span>
     </div>
 </section>
 
-<section class="split" style="margin-top:14px;">
+<!-- Main content: overview + forms -->
+<div class="split" style="align-items:start;">
+
+    <!-- Overview + vitals + notes -->
     <article class="card">
-        <h3 class="card-title">Overview</h3>
-        <p class="card-note">PHI is minimized in this view for contextual safety.</p>
-        <div class="table-wrap" style="margin-top:10px;">
-            <table>
+        <!-- Patient overview -->
+        <h3 class="card-title" style="margin-bottom:10px;">Patient Overview</h3>
+        <p class="card-note" style="margin-bottom:10px;">PHI is minimised in this view for contextual safety.</p>
+        <div class="table-wrap" style="margin-bottom:18px;">
+            <table style="min-width:0;">
                 <tbody>
-                    <tr><th>PatientRef</th><td>{{ patient.hospital_id }}</td></tr>
-                    <tr><th>Date of Birth</th><td>{{ patient.date_of_birth }}</td></tr>
-                    <tr><th>Current status</th><td>{{ patient_meta.status }}</td></tr>
-                    <tr><th>Diagnosis</th><td>{{ patient.diagnosis }}</td></tr>
-                    <tr><th>Care notes</th><td>{{ patient.notes|default:"-" }}</td></tr>
+                    <tr>
+                        <th style="width:35%;background:transparent;font-size:0.74rem;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.05em;">Patient Ref</th>
+                        <td style="font-family:var(--font-mono);font-weight:600;">{{ patient.hospital_id }}</td>
+                    </tr>
+                    <tr>
+                        <th style="background:transparent;font-size:0.74rem;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.05em;">Date of Birth</th>
+                        <td>{{ patient.date_of_birth }}</td>
+                    </tr>
+                    <tr>
+                        <th style="background:transparent;font-size:0.74rem;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.05em;">Status</th>
+                        <td>{{ patient_meta.status }}</td>
+                    </tr>
+                    <tr>
+                        <th style="background:transparent;font-size:0.74rem;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.05em;">Diagnosis</th>
+                        <td>{{ patient.diagnosis }}</td>
+                    </tr>
+                    <tr>
+                        <th style="background:transparent;font-size:0.74rem;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.05em;">Care Notes</th>
+                        <td>{{ patient.notes|default:"—" }}</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
 
-        <h3 class="card-title" style="margin-top:16px;">Recent Vitals</h3>
-        <div class="table-wrap" style="margin-top:8px;">
+        <!-- Recent Vitals -->
+        <h3 class="card-title" style="margin-bottom:10px;">Recent Vitals</h3>
+        <div class="table-wrap" style="margin-bottom:18px;">
             <table>
                 <thead>
                     <tr>
-                        <th>Time</th>
-                        <th>BP</th>
-                        <th>Temp</th>
-                        <th>Pulse</th>
-                        <th>Resp</th>
-                        <th>O2</th>
+                        <th>Time</th><th>BP</th><th>Temp</th><th>Pulse</th><th>Resp</th><th>O₂</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for vital in recent_vitals %}
-                        <tr>
-                            <td>{{ vital.recorded_at|date:"Y-m-d H:i" }}</td>
-                            <td>{{ vital.blood_pressure }}</td>
-                            <td>{{ vital.temperature_c }}</td>
-                            <td>{{ vital.pulse_bpm }}</td>
-                            <td>{{ vital.respiration_rate }}</td>
-                            <td>{{ vital.oxygen_saturation }}%</td>
-                        </tr>
+                    <tr>
+                        <td style="font-family:var(--font-mono);font-size:0.76rem;color:var(--gray-500);">{{ vital.recorded_at|date:"d/m H:i" }}</td>
+                        <td>{{ vital.blood_pressure }}</td>
+                        <td>{{ vital.temperature_c }}°</td>
+                        <td>{{ vital.pulse_bpm }}</td>
+                        <td>{{ vital.respiration_rate }}</td>
+                        <td>
+                            {% if vital.oxygen_saturation < 95 %}
+                            <span style="font-weight:600;color:var(--danger-500);">
+                            {% else %}
+                            <span style="font-weight:600;color:var(--success-500);">
+                            {% endif %}
+                                {{ vital.oxygen_saturation }}%
+                            </span>
+                        </td>
+                    </tr>
                     {% empty %}
-                        <tr><td colspan="6">No vitals recorded yet.</td></tr>
+                    <tr><td colspan="6" style="text-align:center;color:var(--gray-400);padding:12px;">No vitals recorded yet.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
 
-        <h3 class="card-title" style="margin-top:16px;">Recent Nursing Notes</h3>
-        <div class="table-wrap" style="margin-top:8px;">
+        <!-- Recent nursing notes -->
+        <h3 class="card-title" style="margin-bottom:10px;">Recent Nursing Notes</h3>
+        <div class="table-wrap">
             <table>
                 <thead>
-                    <tr>
-                        <th>Time</th>
-                        <th>Type</th>
-                        <th>Pain</th>
-                        <th>Note</th>
-                    </tr>
+                    <tr><th>Time</th><th>Type</th><th>Pain</th><th>Note</th></tr>
                 </thead>
                 <tbody>
                     {% for note in recent_notes %}
-                        <tr>
-                            <td>{{ note.created_at|date:"Y-m-d H:i" }}</td>
-                            <td>{{ note.note_type }}</td>
-                            <td>{{ note.pain_score|default:"-" }}</td>
-                            <td>{{ note.note_text|truncatechars:90 }}</td>
-                        </tr>
+                    <tr>
+                        <td style="font-family:var(--font-mono);font-size:0.76rem;color:var(--gray-500);">{{ note.created_at|date:"d/m H:i" }}</td>
+                        <td><span class="badge info" style="font-size:0.62rem;">{{ note.note_type }}</span></td>
+                        <td>{{ note.pain_score|default:"—" }}</td>
+                        <td style="font-size:0.79rem;color:var(--gray-600);max-width:200px;white-space:normal;">
+                            {{ note.note_text|truncatechars:90 }}
+                        </td>
+                    </tr>
                     {% empty %}
-                        <tr><td colspan="4">No nursing notes recorded yet.</td></tr>
+                    <tr><td colspan="4" style="text-align:center;color:var(--gray-400);padding:12px;">No nursing notes yet.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </article>
 
+    <!-- Forms panel -->
     <article class="card">
-        <h3 class="card-title" id="vitals-form">Add Vitals</h3>
-        <p class="card-note">Capture current bedside measurements.</p>
+        <!-- Add Vitals -->
+        <h3 class="card-title" id="vitals-form" style="margin-bottom:4px;">Add Vitals</h3>
+        <p class="card-note" style="margin-bottom:12px;">Capture current bedside measurements.</p>
         <form method="post" action="{% url 'hrms-add-vitals' patient.id %}">
             {% csrf_token %}
-            <div class="grid two" style="margin-top:10px;">
-                <div class="field"><label>BP (mmHg)</label><input class="input" name="blood_pressure" placeholder="120/80" required></div>
-                <div class="field"><label>Temperature (C)</label><input class="input" name="temperature_c" placeholder="36.7" required></div>
-                <div class="field"><label>Pulse (bpm)</label><input class="input" name="pulse_bpm" placeholder="78" required></div>
-                <div class="field"><label>Resp (breaths/min)</label><input class="input" name="respiration_rate" placeholder="17" required></div>
-                <div class="field"><label>O2 saturation (%)</label><input class="input" name="oxygen_saturation" placeholder="97" required></div>
-                <div class="field"><label>Notes</label><input class="input" name="vitals_notes" placeholder="Optional note"></div>
+            <div class="grid two">
+                <div class="field"><label>BP (mmHg)</label><input name="blood_pressure" placeholder="120/80" required></div>
+                <div class="field"><label>Temperature (°C)</label><input name="temperature_c" placeholder="36.7" required></div>
+                <div class="field"><label>Pulse (bpm)</label><input name="pulse_bpm" placeholder="78" required></div>
+                <div class="field"><label>Resp (breaths/min)</label><input name="respiration_rate" placeholder="17" required></div>
+                <div class="field"><label>O₂ saturation (%)</label><input name="oxygen_saturation" placeholder="97" required></div>
+                <div class="field"><label>Notes</label><input name="vitals_notes" placeholder="Optional note"></div>
             </div>
-            <div class="button-row" style="margin-top:10px;">
-                <button class="btn" type="submit">Save Vitals</button>
-                <button class="btn secondary" type="reset">Clear</button>
+            <div class="button-row">
+                <button class="btn" type="submit">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>
+                    Save Vitals
+                </button>
+                <button class="btn btn-secondary" type="reset">Clear</button>
             </div>
         </form>
 
-        <h3 class="card-title" style="margin-top:16px;" id="note-form">Add Nursing Note</h3>
+        <hr style="border:none;border-top:1px solid var(--border);margin:20px 0;">
+
+        <!-- Add Nursing Note -->
+        <h3 class="card-title" id="note-form" style="margin-bottom:4px;">Add Nursing Note</h3>
+        <p class="card-note" style="margin-bottom:12px;">Document clinical observations for this patient.</p>
         <form method="post" action="{% url 'hrms-add-note' patient.id %}">
             {% csrf_token %}
-            <div class="field" style="margin-top:8px;">
+            <div class="field">
                 <label>Note type</label>
-                <select class="select" name="note_type">
+                <select name="note_type">
                     <option value="progress">Progress note</option>
                     <option value="pain_reassessment">Pain reassessment</option>
                     <option value="escalation">Escalation note</option>
                 </select>
             </div>
-            <div class="field">
-                <label>Structured fields</label>
-                <div class="grid two">
-                    <input class="input" name="pain_score" placeholder="Pain score (0-10)">
-                    <input class="input" name="mobility_status" placeholder="Mobility status">
-                    <input class="input" name="intake_output" placeholder="Intake/Output">
-                    <input class="input" name="escalated_to" placeholder="Escalated to">
-                </div>
+            <div class="grid two">
+                <div class="field"><label>Pain score (0–10)</label><input name="pain_score" placeholder="0–10"></div>
+                <div class="field"><label>Mobility status</label><input name="mobility_status" placeholder="Ambulatory"></div>
+                <div class="field"><label>Intake / Output</label><input name="intake_output" placeholder="1200 ml / 900 ml"></div>
+                <div class="field"><label>Escalated to</label><input name="escalated_to" placeholder="Dr. Smith"></div>
             </div>
             <div class="field">
-                <label>Free text note</label>
-                <textarea class="textarea" name="note_text" placeholder="Document objective observations and response to interventions." required></textarea>
+                <label>Free text note <span style="color:var(--danger-500);">*</span></label>
+                <textarea name="note_text"
+                          placeholder="Document objective observations and response to interventions."
+                          required></textarea>
             </div>
             <div class="button-row">
                 <button class="btn" type="submit">Save Note</button>
-                <button class="btn secondary" type="reset">Save Draft</button>
+                <button class="btn btn-secondary" type="reset">Save Draft</button>
             </div>
         </form>
     </article>
-</section>
+</div>
+
 {% endblock %}

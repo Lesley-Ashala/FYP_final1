@@ -1,18 +1,52 @@
-<header class="topbar">
-    <div>
-        <h1 class="topbar-title">{{ page_name }}</h1>
-        <p class="topbar-subtitle">{{ page_note }}</p>
-    </div>
-    <div class="topbar-right">
-        <span class="pill lock">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="11" width="18" height="10" rx="2"></rect>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+<header class="topbar" role="banner">
+
+    <div class="topbar-left">
+        <!-- Mobile hamburger -->
+        <button class="topbar-hamburger" id="sidebar-toggle" aria-label="Open navigation" aria-expanded="false">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="3" y1="6" x2="21" y2="6"/>
+                <line x1="3" y1="12" x2="21" y2="12"/>
+                <line x1="3" y1="18" x2="21" y2="18"/>
             </svg>
-            Session expires in {{ session_expiry }}
-        </span>
-        <span class="pill security">{{ demo_role_label }}</span>
-        <span class="pill">{{ demo_user }}</span>
-        <a href="{% url 'hrms-logout' %}" class="btn secondary">Log out</a>
+        </button>
+
+        <div>
+            <h1 class="topbar-title">{{ page_name }}</h1>
+            {% if page_note %}
+                <p class="topbar-subtitle">{{ page_note }}</p>
+            {% endif %}
+        </div>
     </div>
+
+    <div class="topbar-right">
+        <!-- Session timer -->
+        <span class="pill lock" title="Session expires in {{ session_expiry }}">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="10" rx="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <span class="hide-xs">{{ session_expiry }}</span>
+        </span>
+
+        <!-- Role badge -->
+        <span class="pill security">{{ demo_role_label }}</span>
+
+        <!-- User -->
+        <span class="pill">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>
+            {{ demo_user }}
+        </span>
+
+        <a href="{% url 'hrms-logout' %}" class="btn btn-secondary btn-sm">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+            <span class="hide-xs">Log out</span>
+        </a>
+    </div>
+
 </header>
+
+<style>
+@media (max-width: 480px) {
+    .hide-xs { display: none; }
+}
+</style>
