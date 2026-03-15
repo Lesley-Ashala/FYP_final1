@@ -43,6 +43,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "monitoring.context_processors.user_role",
+                "monitoring.context_processors.hrms_nav",
             ],
         },
     },

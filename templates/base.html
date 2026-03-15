@@ -68,7 +68,7 @@
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:0.5"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>
                     <strong>{{ user.username }}</strong>
                     <span class="badge {% if user_role == 'admin' %}success{% elif user_role == 'doctor' %}info{% else %}medium{% endif %}" style="font-size:0.64rem;">{{ user_role }}</span>
-                    <a href="{% url 'logout' %}" class="app-nav__link" style="margin-left:4px;">Log out</a>
+                    <a href="{% url 'hrms-logout' %}" class="app-nav__link" style="margin-left:4px;">Log out</a>
                 {% else %}
                     <a href="{% url 'login' %}" class="app-nav__link">Sign in</a>
                 {% endif %}
