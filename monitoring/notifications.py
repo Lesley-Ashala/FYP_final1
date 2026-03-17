@@ -11,18 +11,35 @@ from monitoring.models import AccessLog
 
 logger = logging.getLogger(__name__)
 
+_LOG_ONCE: set[str] = set()
+
+
+def _log_once(key: str, level: int, message: str) -> None:
+    if key in _LOG_ONCE:
+        return
+    _LOG_ONCE.add(key)
+    logger.log(level, message)
+
 
 def _mailjet_client():
     try:
         from mailjet_rest import Client  # type: ignore
     except Exception:  # pragma: no cover
-        logger.info("Mailjet library not installed; skipping alert email")
+        _log_once(
+            "mailjet-lib-missing",
+            logging.WARNING,
+            "mailjet-rest library not installed; alert emails cannot be sent.",
+        )
         return None
 
     api_key = getattr(settings, "MAILJET_API_KEY_PUBLIC", "")
     api_secret = getattr(settings, "MAILJET_API_KEY_PRIVATE", "")
     if not api_key or not api_secret:
-        logger.info("Mailjet API keys missing; skipping alert email")
+        _log_once(
+            "mailjet-keys-missing",
+            logging.WARNING,
+            "Mailjet API keys missing; set MJ_APIKEY_PUBLIC and MJ_APIKEY_PRIVATE to send alert emails.",
+        )
         return None
 
     return Client(auth=(api_key, api_secret), version="v3.1")
@@ -61,8 +78,10 @@ def send_flagged_accesslog_alert(*, access_log: AccessLog, detection_run_id: int
 
     enabled = bool(getattr(settings, "ALERT_EMAIL_ENABLED", False))
     if not enabled:
-        logger.info(
-            "ALERT_EMAIL_ENABLED is false (or missing required config); skipping alert email"
+        _log_once(
+            "alert-email-disabled",
+            logging.INFO,
+            "ALERT_EMAIL_ENABLED is false; skipping alert email.",
         )
         return False
 

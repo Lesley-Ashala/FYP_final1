@@ -11,6 +11,7 @@ from io import StringIO
 from django.contrib import messages
 from django.contrib.auth import authenticate, get_user_model, login as auth_login, logout as auth_logout
 from django.contrib.sessions.models import Session
+from django.conf import settings
 from django.db.models import Avg, Count, Max, Q
 from django.db.models.functions import TruncDate, TruncHour
 from django.http import HttpRequest, HttpResponse
@@ -620,6 +621,8 @@ def admin_dashboard(request: HttpRequest) -> HttpResponse:
         "feature_columns": FEATURE_COLUMNS,
         "default_contamination": 0.08,
     }
+
+    context["email_alerts_enabled"] = bool(getattr(settings, "ALERT_EMAIL_ENABLED", False))
 
     # --- Premium analytics (DB-driven) ---
     trend_window_days = 14

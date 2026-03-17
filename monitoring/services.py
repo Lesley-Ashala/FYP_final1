@@ -184,7 +184,7 @@ def flag_download_burst_if_needed(
 
     # Notify only once per flagged burst event.
     try:
-        send_flagged_accesslog_alert(latest)
+        send_flagged_accesslog_alert(access_log=latest, detection_run_id=0)
     except Exception:
         pass
     return True

@@ -43,8 +43,33 @@ Seeded HRMS users (password: `Welcome@123`):
 - `DOC-0458` (doctor)
 - `NUR-1142` (nurse)
 
+## 2.1) Import Real Dataset (cybersecurity.csv)
+
+This repo includes `cybersecurity.csv` (10,000 rows). Import it into the database:
+
+```bash
+python manage.py import_cybersecurity_csv --reset
+```
+
+Imported rows are tagged internally, and the HRMS dashboards/analytics read directly from the DB.
+
 Synthetic-data users (password: `Hospital123!`):
 - `admin_mike`, `doctor_amy`, `doctor_bob`, `doctor_lina`, `nurse_ella`, `nurse_omar`, `nurse_sara`
+
+## 3.1) Enable Automated Alert Emails (Mailjet)
+
+Alert emails are controlled by `ALERT_EMAIL_ENABLED`.
+
+To actually send emails via Mailjet, set these environment variables:
+
+- `ALERT_EMAIL_ENABLED=true`
+- `MJ_APIKEY_PUBLIC=...`
+- `MJ_APIKEY_PRIVATE=...`
+- `MAILJET_FROM_EMAIL=...` (must be validated in Mailjet)
+- `MAILJET_FROM_NAME=Hospital Monitor` (optional)
+- `ALERT_EMAIL_TO=gmutakura8@gmail.com` (comma-separated list supported)
+
+If Mailjet keys are missing, the app will keep running but will log a clear warning that emails cannot be sent.
 
 ## 3) Generate Synthetic Dataset
 

@@ -112,10 +112,9 @@ MAILJET_FROM_NAME = os.environ.get("MAILJET_FROM_NAME", "Hospital Monitor")
 # Comma-separated recipients. Default matches your request.
 ALERT_EMAIL_TO = _env_csv("ALERT_EMAIL_TO", "gmutakura8@gmail.com")
 
-# Enabled only when explicitly enabled AND keys are present.
-ALERT_EMAIL_ENABLED = _env_bool("ALERT_EMAIL_ENABLED", True) and bool(
-    MAILJET_API_KEY_PUBLIC and MAILJET_API_KEY_PRIVATE and ALERT_EMAIL_TO
-)
+# Controls whether the app attempts to send alert emails.
+# If enabled but credentials are missing, sending will fail with a clear log message.
+ALERT_EMAIL_ENABLED = _env_bool("ALERT_EMAIL_ENABLED", True)
 
 
 LOGGING = {

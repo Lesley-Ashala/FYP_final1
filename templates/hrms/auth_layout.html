@@ -13,11 +13,19 @@
             display: grid;
             place-items: center;
             background: var(--bg-app);
-            /* Subtle dot grid pattern */
-            background-image: radial-gradient(circle, var(--gray-300) 1px, transparent 1px);
-            background-size: 28px 28px;
+            /* Photo background with a whitish overlay (image still visible). */
+            background-image:
+                linear-gradient(
+                    135deg,
+                    color-mix(in srgb, var(--gray-50) 82%, transparent),
+                    color-mix(in srgb, var(--gray-50) 55%, transparent)
+                ),
+                url('https://images.unsplash.com/photo-1633219664572-473fd988a44f?ixlib=rb-4.1.0&q=85&fm=jpg&crop=entropy&cs=srgb&w=2000');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
         }
-        /* Override pattern with a centered gradient */
+        /* Premium glow overlay */
         body::before {
             content: '';
             position: fixed;
