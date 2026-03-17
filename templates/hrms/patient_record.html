@@ -25,10 +25,39 @@
             </p>
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
-            <a class="btn secondary" href="{% url 'hrms-download-patient-record' patient.id %}">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                Download CSV
-            </a>
+            {% if download_lock_remaining_seconds and download_lock_remaining_seconds > 0 %}
+                <span class="btn secondary" aria-disabled="true" style="pointer-events:none;opacity:0.60;">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Download locked
+                </span>
+                <span class="pill" style="display:inline-flex;gap:8px;">
+                    Cooldown:
+                    <strong id="downloadCooldown" data-seconds="{{ download_lock_remaining_seconds|default:0 }}" style="font-family:var(--font-mono);"></strong>
+                </span>
+                <script>
+                    (function(){
+                        var el = document.getElementById('downloadCooldown');
+                        if(!el){ return; }
+                        var seconds = parseInt(el.getAttribute('data-seconds') || '0', 10);
+                        function fmt(s){
+                            var m = Math.floor(s/60);
+                            var r = s%60;
+                            return String(m).padStart(2,'0') + ':' + String(r).padStart(2,'0');
+                        }
+                        el.textContent = fmt(seconds);
+                        var t = setInterval(function(){
+                            seconds = Math.max(0, seconds-1);
+                            el.textContent = fmt(seconds);
+                            if(seconds <= 0){ clearInterval(t); }
+                        }, 1000);
+                    })();
+                </script>
+            {% else %}
+                <a class="btn secondary" href="{% url 'hrms-download-patient-record' patient.id %}">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Download CSV
+                </a>
+            {% endif %}
             {% if patient_meta.status == "Stable" %}
                 <span class="badge success">{{ patient_meta.status }}</span>
             {% elif patient_meta.status == "Observation" %}

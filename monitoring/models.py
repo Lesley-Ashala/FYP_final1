@@ -24,6 +24,10 @@ class UserProfile(models.Model):
     mfa_enabled = models.BooleanField(default=True)
     force_password_reset = models.BooleanField(default=False)
 
+    # Burst-download protection: lock downloads for a cooldown window after suspicious activity.
+    download_locked_until = models.DateTimeField(null=True, blank=True)
+    download_lock_reason = models.CharField(max_length=255, blank=True)
+
     def __str__(self) -> str:
         return f"{self.user.username} ({self.role})"
 

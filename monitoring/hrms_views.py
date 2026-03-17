@@ -1208,6 +1208,23 @@ def patient_record_page(request: HttpRequest, pk: int) -> HttpResponse:
         return denied
     patient = get_object_or_404(PatientRecord.objects.select_related("attending_doctor"), id=pk)
     actor = _actor_or_fallback_user(request)
+
+    # Download burst cooldown state (if active).
+    download_locked_until = None
+    download_lock_remaining_seconds = 0
+    try:
+        now = timezone.now()
+        profile = getattr(actor, "profile", None)
+        locked_until = getattr(profile, "download_locked_until", None) if profile else None
+        if locked_until and locked_until > now:
+            download_locked_until = locked_until
+            download_lock_remaining_seconds = max(0, int((locked_until - now).total_seconds()))
+        elif locked_until and locked_until <= now and profile:
+            profile.download_locked_until = None
+            profile.download_lock_reason = ""
+            profile.save(update_fields=["download_locked_until", "download_lock_reason"])
+    except Exception:
+        pass
     log_record_access(
         user=actor,
         patient_record=patient,
@@ -1232,6 +1249,8 @@ def patient_record_page(request: HttpRequest, pk: int) -> HttpResponse:
     context["recent_vitals"] = NursingVital.objects.filter(patient_record=patient)[:5]
     context["recent_notes"] = NursingNote.objects.filter(patient_record=patient)[:5]
     context["last_access_reason"] = request.session.get("hrms_last_access_reason", "")
+    context["download_locked_until"] = download_locked_until
+    context["download_lock_remaining_seconds"] = download_lock_remaining_seconds
     return render(request, "hrms/patient_record.html", context)
 
 
@@ -1242,6 +1261,38 @@ def download_patient_record_action(request: HttpRequest, pk: int) -> HttpRespons
         return denied
     patient = get_object_or_404(PatientRecord, id=pk)
     actor = _actor_or_fallback_user(request)
+
+    # Enforce download cooldown (burst protection).
+    try:
+        now = timezone.now()
+        profile = getattr(actor, "profile", None)
+        locked_until = getattr(profile, "download_locked_until", None) if profile else None
+        if locked_until and locked_until > now:
+            remaining = max(0, int((locked_until - now).total_seconds()))
+            _log_audit_event(
+                request,
+                action_type="download_blocked",
+                patient_ref=patient.hospital_id,
+                details=(
+                    f"Blocked by cooldown until {locked_until.isoformat()} (remaining={remaining}s)"
+                )[:255],
+            )
+            resp = HttpResponse(
+                (
+                    "Download temporarily blocked due to rapid successive downloads. "
+                    f"Try again in {max(1, (remaining + 59) // 60)} minute(s)."
+                ),
+                status=429,
+                content_type="text/plain",
+            )
+            resp["Retry-After"] = str(remaining)
+            return resp
+        elif locked_until and locked_until <= now and profile:
+            profile.download_locked_until = None
+            profile.download_lock_reason = ""
+            profile.save(update_fields=["download_locked_until", "download_lock_reason"])
+    except Exception:
+        pass
 
     log_record_access(
         user=actor,
@@ -1258,7 +1309,7 @@ def download_patient_record_action(request: HttpRequest, pk: int) -> HttpRespons
     )
 
     # Flag rapid download behavior.
-    flag_download_burst_if_needed(user=actor, window_minutes=10, threshold=10)
+    flag_download_burst_if_needed(user=actor, window_minutes=10, threshold=10, lock_minutes=10)
 
     buffer = StringIO()
     writer = csv.writer(buffer)

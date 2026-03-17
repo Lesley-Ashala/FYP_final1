@@ -128,6 +128,7 @@ def flag_download_burst_if_needed(
     user,
     window_minutes: int = 10,
     threshold: int = 10,
+    lock_minutes: int = 10,
 ) -> bool:
     """Flag rapid successive downloads by the same user.
 
@@ -152,6 +153,20 @@ def flag_download_burst_if_needed(
     download_count = recent.count()
     if download_count < threshold:
         return False
+
+    # Start a cooldown lock once the threshold is reached.
+    try:
+        profile = getattr(user, "profile", None)
+        if profile is not None and lock_minutes > 0:
+            locked_until = getattr(profile, "download_locked_until", None)
+            if not locked_until or locked_until <= now:
+                profile.download_locked_until = now + timedelta(minutes=int(lock_minutes))
+                profile.download_lock_reason = (
+                    f"Auto-lock: {download_count} downloads in {window_minutes} minutes"
+                )[:255]
+                profile.save(update_fields=["download_locked_until", "download_lock_reason"])
+    except Exception:
+        pass
 
     latest = recent.first()
     if not latest:
