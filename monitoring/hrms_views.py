@@ -1277,16 +1277,15 @@ def download_patient_record_action(request: HttpRequest, pk: int) -> HttpRespons
                     f"Blocked by cooldown until {locked_until.isoformat()} (remaining={remaining}s)"
                 )[:255],
             )
-            resp = HttpResponse(
+            minutes = max(1, (remaining + 59) // 60)
+            messages.error(
+                request,
                 (
                     "Download temporarily blocked due to rapid successive downloads. "
-                    f"Try again in {max(1, (remaining + 59) // 60)} minute(s)."
+                    f"Try again in {minutes} minute(s)."
                 ),
-                status=429,
-                content_type="text/plain",
             )
-            resp["Retry-After"] = str(remaining)
-            return resp
+            return redirect("hrms-patient-record", pk=pk)
         elif locked_until and locked_until <= now and profile:
             profile.download_locked_until = None
             profile.download_lock_reason = ""

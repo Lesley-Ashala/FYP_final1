@@ -104,9 +104,13 @@ def _env_csv(name: str, default: str = "") -> list[str]:
 
 
 # Mailjet (transactional alerts)
-MAILJET_API_KEY_PUBLIC = os.environ.get("902e71ae2e54577c1681c2668d3ddd5a", "")
-MAILJET_API_KEY_PRIVATE = os.environ.get("df29f72a828a960750c277aec42dcac2", "")
-MAILJET_FROM_EMAIL = os.environ.get("geotechworldzw@gmail.com", "")
+MAILJET_API_KEY_PUBLIC = os.environ.get("MJ_APIKEY_PUBLIC", "") or os.environ.get(
+    "MAILJET_API_KEY_PUBLIC", ""
+)
+MAILJET_API_KEY_PRIVATE = os.environ.get("MJ_APIKEY_PRIVATE", "") or os.environ.get(
+    "MAILJET_API_KEY_PRIVATE", ""
+)
+MAILJET_FROM_EMAIL = os.environ.get("MAILJET_FROM_EMAIL", "")
 MAILJET_FROM_NAME = os.environ.get("MAILJET_FROM_NAME", "Hospital Monitor")
 
 # Comma-separated recipients. Default matches your request.
