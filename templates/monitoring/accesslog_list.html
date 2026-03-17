@@ -47,7 +47,6 @@
                 <select id="source" name="source">
                     <option value="" {% if not filters.source %}selected{% endif %}>All sources</option>
                     <option value="live" {% if filters.source == "live" %}selected{% endif %}>Live</option>
-                    <option value="synthetic" {% if filters.source == "synthetic" %}selected{% endif %}>Synthetic</option>
                 </select>
             </div>
             <div class="field">
@@ -124,11 +123,7 @@
                         {% else %}—{% endif %}
                     </td>
                     <td>
-                        {% if log.is_simulated %}
-                            <span class="badge medium">Synthetic</span>
-                        {% else %}
-                            <span class="badge success">Live</span>
-                        {% endif %}
+                        <span class="badge success">Live</span>
                     </td>
                 </tr>
                 {% empty %}

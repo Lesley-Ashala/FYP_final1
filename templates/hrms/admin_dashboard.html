@@ -34,157 +34,182 @@
     <article class="card">
         <div class="card-header">
             <div>
-                <h3 class="card-title">Core Controls</h3>
-                <p class="card-note">Focused only on RBAC, access logging, anomaly flagging, and alerts.</p>
+                <h3 class="card-title">Security Analytics</h3>
+                <p class="card-note">Live operational insight from database activity.</p>
             </div>
         </div>
-        <div class="grid">
-            <div class="pill">Role assignments enforced (Admin/Doctor/Nurse)</div>
-            <div class="pill">Live access logging enabled</div>
-            <div class="pill">Anomaly flagging pipeline active</div>
-            <div class="pill">Automated alerts open on flagged events</div>
+        <div style="display:grid; gap:10px;">
+            <div style="border-radius: var(--r-lg); overflow:hidden; border:1px solid var(--border); background: var(--gray-50);">
+                <img
+                    src="https://source.unsplash.com/1600x500/?african,healthcare,team"
+                    alt="African healthcare team"
+                    style="width:100%; height:160px; object-fit:cover; display:block;"
+                    loading="lazy"
+                    referrerpolicy="no-referrer"
+                />
+            </div>
+            <div class="notice">
+                Dashboards update from real events in the database (flagged anomalies, alert severity, and download activity).
+            </div>
         </div>
     </article>
 </section>
 
-<section class="card" style="margin-top:14px;" id="ml-monitor">
+<section class="card" style="margin-top:14px;">
     <div class="card-header">
         <div>
-            <h3 class="card-title">Isolation Forest Monitoring</h3>
-            <p class="card-note">
-                Model: {{ isolation_forest_info.model_name }} |
-                Features: {{ isolation_forest_info.feature_columns|join:", " }}
-            </p>
+            <h3 class="card-title">Analytics Overview</h3>
+            <p class="card-note">Flagged trend, alert severity distribution, and download activity (last 24h).</p>
+        </div>
+        <a class="btn secondary" href="{% url 'hrms-alerts' %}">Open Alerts</a>
+    </div>
+
+    <div class="grid two" style="align-items:stretch;">
+        <article style="min-width:0;">
+            <div class="pill" style="display:inline-flex; gap:8px; margin-bottom:10px;">Flagged events (last 14 days)</div>
+            <div style="border:1px solid var(--border); border-radius: var(--r-lg); background: var(--bg-card); padding:12px;">
+                <canvas id="flaggedTrendChart" height="110"></canvas>
+            </div>
+        </article>
+
+        <article style="min-width:0;">
+            <div class="pill" style="display:inline-flex; gap:8px; margin-bottom:10px;">Open alerts by severity</div>
+            <div style="border:1px solid var(--border); border-radius: var(--r-lg); background: var(--bg-card); padding:12px;">
+                <canvas id="severityChart" height="110"></canvas>
+            </div>
+        </article>
+    </div>
+
+    <div style="margin-top:12px;">
+        <div class="pill" style="display:inline-flex; gap:8px; margin-bottom:10px;">Downloads (last 24h)</div>
+        <div style="border:1px solid var(--border); border-radius: var(--r-lg); background: var(--bg-card); padding:12px;">
+            <canvas id="downloadsChart" height="90"></canvas>
         </div>
     </div>
 
-    <div class="grid two" style="margin-bottom:12px;">
-        <article>
-            <h4 style="margin:0 0 8px;">Run Detection</h4>
-            <form method="post" action="{% url 'hrms-run-detection' %}" class="button-row">
-                {% csrf_token %}
-                <input class="input" type="number" step="0.01" min="0.01" max="0.50" name="contamination" value="{{ isolation_forest_info.default_contamination }}" style="max-width:160px;">
-                <input class="input" type="number" step="0.01" min="0.01" max="0.99" name="threshold_quantile" value="{{ alert_analytics.recommended_quantile }}" style="max-width:190px;">
-                <button class="btn" type="submit">Run Isolation Forest</button>
-            </form>
-            {% if latest_detection_run %}
-                <p class="meta" style="margin-top:8px;">
-                    Last run: {{ latest_detection_run.started_at|date:"Y-m-d H:i:s" }},
-                    flagged {{ latest_detection_run.anomalies_flagged }}/{{ latest_detection_run.total_events_analyzed }},
-                    execution {{ latest_detection_run.execution_time_ms|floatformat:2 }} ms.
-                </p>
-            {% endif %}
-        </article>
-
-        <article>
-            <h4 style="margin:0 0 8px;">Run Evaluation</h4>
-            <form method="post" action="{% url 'hrms-run-evaluation' %}" class="button-row">
-                {% csrf_token %}
-                <input class="input" type="number" step="0.01" min="0.01" max="0.50" name="contamination" value="{{ isolation_forest_info.default_contamination }}" style="max-width:160px;">
-                <input class="input" type="number" step="0.01" min="0.01" max="0.99" name="threshold_quantile" value="{{ alert_analytics.recommended_quantile }}" style="max-width:190px;">
-                <button class="btn secondary" type="submit">Evaluate Model</button>
-            </form>
-            {% if latest_evaluation %}
-                <p class="meta" style="margin-top:8px;">
-                    Latest metrics: Precision {{ latest_evaluation.precision|floatformat:4 }},
-                    Recall {{ latest_evaluation.recall|floatformat:4 }},
-                    FPR {{ latest_evaluation.false_positive_rate|floatformat:4 }},
-                    ADR {{ latest_evaluation.anomaly_detection_rate|floatformat:4 }},
-                    Execution {{ latest_evaluation.execution_time_ms|floatformat:2 }} ms.
-                </p>
-            {% endif %}
-        </article>
-    </div>
-
-    <div class="table-wrap">
+    <div style="margin-top:12px;" class="table-wrap">
         <table>
             <thead>
                 <tr>
-                    <th>Created At</th>
-                    <th>Dataset Size</th>
-                    <th>Predicted Anomalies</th>
-                    <th>Precision</th>
-                    <th>Recall</th>
-                    <th>False Positive Rate</th>
-                    <th>Anomaly Detection Rate</th>
-                    <th>Execution Time (ms)</th>
+                    <th>Top downloaders (24h)</th>
+                    <th>Downloads</th>
+                    <th>Unique records</th>
                 </tr>
             </thead>
             <tbody>
-                {% for item in evaluation_rows %}
+                {% for row in top_downloaders %}
                     <tr>
-                        <td>{{ item.created_at|date:"Y-m-d H:i:s" }}</td>
-                        <td>{{ item.dataset_size }}</td>
-                        <td>{{ item.predicted_anomalies }}</td>
-                        <td>{{ item.precision|floatformat:4 }}</td>
-                        <td>{{ item.recall|floatformat:4 }}</td>
-                        <td>{{ item.false_positive_rate|floatformat:4 }}</td>
-                        <td>{{ item.anomaly_detection_rate|floatformat:4 }}</td>
-                        <td>{{ item.execution_time_ms|floatformat:2 }}</td>
+                        <td>{{ row.user__username }}</td>
+                        <td>{{ row.downloads }}</td>
+                        <td>{{ row.unique_records }}</td>
                     </tr>
                 {% empty %}
-                    <tr>
-                        <td colspan="8">No evaluation runs yet. Click "Evaluate Model" to generate metrics.</td>
-                    </tr>
+                    <tr><td colspan="3">No download activity yet.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
-</section>
 
-<section class="card" style="margin-top:14px;">
-    <div class="card-header">
-        <div>
-            <h3 class="card-title">Anomaly Score Distribution</h3>
-            <p class="card-note">Histogram of Isolation Forest anomaly scores across access logs.</p>
-        </div>
-        <div class="button-row">
-            {% if anomaly_score_distribution.total %}
-                <span class="pill">Total scored events: {{ anomaly_score_distribution.total }}</span>
-                <a class="btn secondary" href="{% url 'hrms-export-anomaly-histogram' %}?bins={{ anomaly_score_distribution.bin_count }}">Export CSV</a>
-                <a class="btn secondary" href="{% url 'hrms-export-anomaly-histogram' %}?format=svg">Download Chart</a>
-            {% endif %}
-        </div>
-    </div>
-    {% if anomaly_score_distribution.bins %}
-        <div class="histogram">
-            {% for bin in anomaly_score_distribution.bins %}
-                <div class="hist-bar">
-                    <div class="hist-bar-fill" style="height: {{ bin.height }}%;"></div>
-                    <div class="hist-bar-meta">
-                        <span class="hist-count">{{ bin.count }}</span>
-                        <span class="hist-label">{{ bin.label }}</span>
-                    </div>
-                </div>
-            {% endfor %}
-        </div>
-    {% else %}
-        <div class="notice">No anomaly scores available yet. Run detection to generate the distribution.</div>
-    {% endif %}
-</section>
+    {{ chart_flagged_daily_labels|json_script:"flaggedDailyLabels" }}
+    {{ chart_flagged_daily_values|json_script:"flaggedDailyValues" }}
+    {{ chart_severity_labels|json_script:"severityLabels" }}
+    {{ chart_severity_values|json_script:"severityValues" }}
+    {{ chart_downloads_hourly_labels|json_script:"downloadsLabels" }}
+    {{ chart_downloads_hourly_values|json_script:"downloadsValues" }}
 
-<section class="card" style="margin-top:14px;">
-    <div class="card-header">
-        <div>
-            <h3 class="card-title">Predictive Alert Analytics</h3>
-            <p class="card-note">Forecasted alert load based on recent trend and current backlog.</p>
-        </div>
-        <a class="btn secondary" href="{% url 'hrms-alerts' %}">Open Alerts</a>
-    </div>
-    <div class="grid two">
-        <div class="pill">Recent 24h alerts: {{ alert_analytics.recent_24h_count }}</div>
-        <div class="pill">Previous 24h alerts: {{ alert_analytics.previous_24h_count }}</div>
-        <div class="pill">Trend change: {{ alert_analytics.growth_percent }}%</div>
-        <div class="pill">Predicted next hour: {{ alert_analytics.predicted_next_hour }}</div>
-        <div class="pill">Predicted next 24h: {{ alert_analytics.predicted_next_24h }}</div>
-        <div class="pill">Critical open alerts: {{ alert_analytics.critical_open_alerts }}</div>
-    </div>
-    <form method="post" action="{% url 'hrms-run-detection' %}" class="button-row" style="margin-top:12px;">
-        {% csrf_token %}
-        <input class="input" type="number" step="0.01" min="0.01" max="0.50" name="contamination" value="{{ isolation_forest_info.default_contamination }}" style="max-width:160px;">
-        <input class="input" type="number" step="0.01" min="0.01" max="0.99" name="threshold_quantile" value="{{ alert_analytics.recommended_quantile }}" style="max-width:190px;">
-        <button class="btn" type="submit">Run Auto Detection + Alerts</button>
-    </form>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script>
+        (function () {
+            if (!window.Chart) return;
+            const rootStyle = getComputedStyle(document.documentElement);
+            const brand = rootStyle.getPropertyValue('--brand-500').trim() || '#0f8a7a';
+            const brandSoft = rootStyle.getPropertyValue('--brand-200').trim() || '#8fcec3';
+            const gray200 = rootStyle.getPropertyValue('--gray-200').trim() || '#e2e8f0';
+            const gray600 = rootStyle.getPropertyValue('--gray-600').trim() || '#475569';
+
+            const flaggedLabels = JSON.parse(document.getElementById('flaggedDailyLabels').textContent || '[]');
+            const flaggedValues = JSON.parse(document.getElementById('flaggedDailyValues').textContent || '[]');
+            const sevLabels = JSON.parse(document.getElementById('severityLabels').textContent || '[]');
+            const sevValues = JSON.parse(document.getElementById('severityValues').textContent || '[]');
+            const dlLabels = JSON.parse(document.getElementById('downloadsLabels').textContent || '[]');
+            const dlValues = JSON.parse(document.getElementById('downloadsValues').textContent || '[]');
+
+            function baseOptions() {
+                return {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { color: gray600, boxWidth: 10, boxHeight: 10 } },
+                        tooltip: { enabled: true },
+                    },
+                    scales: {
+                        x: { grid: { color: gray200 }, ticks: { color: gray600 } },
+                        y: { grid: { color: gray200 }, ticks: { color: gray600 }, beginAtZero: true },
+                    },
+                };
+            }
+
+            const flaggedCtx = document.getElementById('flaggedTrendChart');
+            if (flaggedCtx) {
+                new Chart(flaggedCtx, {
+                    type: 'line',
+                    data: {
+                        labels: flaggedLabels,
+                        datasets: [{
+                            label: 'Flagged',
+                            data: flaggedValues,
+                            borderColor: brand,
+                            backgroundColor: brandSoft,
+                            tension: 0.35,
+                            fill: true,
+                            pointRadius: 2,
+                        }],
+                    },
+                    options: baseOptions(),
+                });
+            }
+
+            const severityCtx = document.getElementById('severityChart');
+            if (severityCtx) {
+                new Chart(severityCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: sevLabels,
+                        datasets: [{
+                            label: 'Open alerts',
+                            data: sevValues,
+                            backgroundColor: brand,
+                            borderRadius: 8,
+                        }],
+                    },
+                    options: {
+                        ...baseOptions(),
+                        plugins: { legend: { display: false } },
+                    },
+                });
+            }
+
+            const downloadsCtx = document.getElementById('downloadsChart');
+            if (downloadsCtx) {
+                new Chart(downloadsCtx, {
+                    type: 'line',
+                    data: {
+                        labels: dlLabels,
+                        datasets: [{
+                            label: 'Downloads',
+                            data: dlValues,
+                            borderColor: brand,
+                            backgroundColor: brandSoft,
+                            tension: 0.35,
+                            fill: true,
+                            pointRadius: 1,
+                        }],
+                    },
+                    options: baseOptions(),
+                });
+            }
+        })();
+    </script>
 </section>
 
 <section class="card" style="margin-top:14px;">

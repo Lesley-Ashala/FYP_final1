@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Security Alert</title>
+</head>
+<body style="margin:0;padding:0;background:#f6f7fb;">
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#f6f7fb;padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" cellpadding="0" cellspacing="0" width="640" style="max-width:640px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #e7e9f2;">
+          <tr>
+            <td style="padding:20px 22px;background:#0f172a;">
+              <div style="font-family:Segoe UI,Arial,sans-serif;color:#ffffff;font-size:14px;letter-spacing:0.6px;opacity:0.9;">HOSPITAL MONITOR</div>
+              <div style="font-family:Segoe UI,Arial,sans-serif;color:#ffffff;font-size:22px;font-weight:700;margin-top:6px;">Flagged Access Event</div>
+              <div style="font-family:Segoe UI,Arial,sans-serif;color:#cbd5e1;font-size:13px;margin-top:6px;">
+                {{ alert_id }} • {{ timestamp_local|date:"Y-m-d H:i:s" }} (local)
+              </div>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:18px 22px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+                <tr>
+                  <td style="font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#0f172a;">
+                    A security-relevant action was automatically flagged by the anomaly detection pipeline.
+                  </td>
+                </tr>
+                <tr><td height="12"></td></tr>
+                <tr>
+                  <td>
+                    <span style="display:inline-block;padding:6px 10px;border-radius:999px;font-family:Segoe UI,Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:0.3px;background:#eef2ff;color:#3730a3;">SEVERITY: {{ severity }}</span>
+                    {% if access_log.alert_status %}
+                      <span style="display:inline-block;margin-left:8px;padding:6px 10px;border-radius:999px;font-family:Segoe UI,Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:0.3px;background:#ecfeff;color:#155e75;">STATUS: {{ access_log.alert_status|upper }}</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              </table>
+
+              <div style="height:14px;"></div>
+
+              <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:separate;border-spacing:0;border:1px solid #e7e9f2;border-radius:12px;overflow:hidden;">
+                <tr>
+                  <td colspan="2" style="padding:12px 14px;background:#f8fafc;border-bottom:1px solid #e7e9f2;font-family:Segoe UI,Arial,sans-serif;font-size:13px;font-weight:700;color:#0f172a;">Event details</td>
+                </tr>
+
+                <tr>
+                  <td style="padding:10px 14px;width:180px;font-family:Segoe UI,Arial,sans-serif;font-size:12px;color:#64748b;border-bottom:1px solid #eef0f7;">Timestamp (UTC)</td>
+                  <td style="padding:10px 14px;font-family:Consolas,Menlo,monospace;font-size:12px;color:#0f172a;border-bottom:1px solid #eef0f7;">{{ timestamp_utc|date:"Y-m-d H:i:s" }}Z</td>
+                </tr>
+                <tr>
+                  <td style="padding:10px 14px;font-family:Segoe UI,Arial,sans-serif;font-size:12px;color:#64748b;border-bottom:1px solid #eef0f7;">Alert ID</td>
+                  <td style="padding:10px 14px;font-family:Consolas,Menlo,monospace;font-size:12px;color:#0f172a;border-bottom:1px solid #eef0f7;">{{ alert_id }}</td>
+                </tr>
+                <tr>
+                  <td style="padding:10px 14px;font-family:Segoe UI,Arial,sans-serif;font-size:12px;color:#64748b;border-bottom:1px solid #eef0f7;">Database PK</td>
+                  <td style="padding:10px 14px;font-family:Consolas,Menlo,monospace;font-size:12px;color:#0f172a;border-bottom:1px solid #eef0f7;">{{ access_log.id }}</td>
+                </tr>
+                <tr>
+                  <td style="padding:10px 14px;font-family:Segoe UI,Arial,sans-serif;font-size:12px;color:#64748b;border-bottom:1px solid #eef0f7;">User</td>
+                  <td style="padding:10px 14px;font-family:Segoe UI,Arial,sans-serif;font-size:12px;color:#0f172a;border-bottom:1px solid #eef0f7;">{{ access_log.user.username }}{% if access_log.user.email %} • {{ access_log.user.email }}{% endif %}</td>
+                </tr>
+                <tr>
+                  <td style="padding:10px 14px;font-family:Segoe UI,Arial,sans-serif;font-size:12px;color:#64748b;border-bottom:1px solid #eef0f7;">Role</td>
+                  <td style="padding:10px 14px;font-family:Segoe UI,Arial,sans-serif;font-size:12px;color:#0f172a;border-bottom:1px solid #eef0f7;">{{ access_log.role_snapshot|upper }}</td>
+                </tr>
+                <tr>
+                  <td style="padding:10px 14px;font-family:Segoe UI,Arial,sans-serif;font-size:12px;color:#64748b;border-bottom:1px solid #eef0f7;">Action</td>
+                  <td style="padding:10px 14px;font-family:Segoe UI,Arial,sans-serif;font-size:12px;color:#0f172a;border-bottom:1px solid #eef0f7;">{{ access_log.action|upper }}</td>
+                </tr>
+                <tr>
+                  <td style="padding:10px 14px;font-family:Segoe UI,Arial,sans-serif;font-size:12px;color:#64748b;border-bottom:1px solid #eef0f7;">Patient record</td>
+                  <td style="padding:10px 14px;font-family:Segoe UI,Arial,sans-serif;font-size:12px;color:#0f172a;border-bottom:1px solid #eef0f7;">{% if access_log.patient_record %}{{ access_log.patient_record.hospital_id }} • {{ access_log.patient_record.full_name }}{% else %}N/A{% endif %}</td>
+                </tr>
+                <tr>
+                  <td style="padding:10px 14px;font-family:Segoe UI,Arial,sans-serif;font-size:12px;color:#64748b;border-bottom:1px solid #eef0f7;">IP address</td>
+                  <td style="padding:10px 14px;font-family:Consolas,Menlo,monospace;font-size:12px;color:#0f172a;border-bottom:1px solid #eef0f7;">{{ access_log.ip_address|default:"—" }}</td>
+                </tr>
+                <tr>
+                  <td style="padding:10px 14px;font-family:Segoe UI,Arial,sans-serif;font-size:12px;color:#64748b;border-bottom:1px solid #eef0f7;">Risk score</td>
+                  <td style="padding:10px 14px;font-family:Consolas,Menlo,monospace;font-size:12px;color:#0f172a;border-bottom:1px solid #eef0f7;">{{ access_log.risk_score|default:"—" }}</td>
+                </tr>
+                <tr>
+                  <td style="padding:10px 14px;font-family:Segoe UI,Arial,sans-serif;font-size:12px;color:#64748b;border-bottom:1px solid #eef0f7;">Anomaly score</td>
+                  <td style="padding:10px 14px;font-family:Consolas,Menlo,monospace;font-size:12px;color:#0f172a;border-bottom:1px solid #eef0f7;">{{ access_log.anomaly_score|default:"—" }}</td>
+                </tr>
+                <tr>
+                  <td style="padding:10px 14px;font-family:Segoe UI,Arial,sans-serif;font-size:12px;color:#64748b;">Notes</td>
+                  <td style="padding:10px 14px;font-family:Segoe UI,Arial,sans-serif;font-size:12px;color:#0f172a;">{{ access_log.notes|default:"—" }}</td>
+                </tr>
+              </table>
+
+              <div style="height:14px;"></div>
+
+              <div style="font-family:Segoe UI,Arial,sans-serif;font-size:12px;color:#64748b;line-height:1.5;">
+                Detection run: <span style="font-family:Consolas,Menlo,monospace;">#{{ detection_run_id }}</span>.
+                If this alert is expected, triage it in the admin dashboard.
+              </div>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:16px 22px;background:#f8fafc;border-top:1px solid #e7e9f2;">
+              <div style="font-family:Segoe UI,Arial,sans-serif;font-size:11px;color:#94a3b8;">
+                This is an automated message. Do not reply.
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

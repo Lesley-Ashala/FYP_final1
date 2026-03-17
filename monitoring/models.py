@@ -57,6 +57,7 @@ class AccessLog(models.Model):
         CREATE = "create", "Create"
         UPDATE = "update", "Update"
         DELETE = "delete", "Delete"
+        DOWNLOAD = "download", "Download"
 
     class AlertSeverity(models.TextChoices):
         LOW = "low", "Low"

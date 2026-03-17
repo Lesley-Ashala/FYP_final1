@@ -159,14 +159,6 @@
                     Investigations
                 </a>
 
-                <!-- Run Detection -->
-                <form method="post" action="{% url 'run-detection' %}" style="display:inline;">
-                    {% csrf_token %}
-                    <button type="submit" class="app-nav__action-btn">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                        Run Detection
-                    </button>
-                </form>
             {% endif %}
         </nav>
 

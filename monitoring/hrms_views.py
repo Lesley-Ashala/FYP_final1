@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import json
 import random
+from pathlib import Path
 from datetime import datetime, timedelta
 from functools import wraps
 from io import StringIO
@@ -11,6 +12,7 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, get_user_model, login as auth_login, logout as auth_logout
 from django.contrib.sessions.models import Session
 from django.db.models import Avg, Count, Max, Q
+from django.db.models.functions import TruncDate, TruncHour
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -32,9 +34,11 @@ from monitoring.models import (
     UserProfile,
 )
 from monitoring.permissions import DEFAULT_PERMISSION_MATRIX, get_user_role, has_permission
+from monitoring.real_data import DATASET_MARKER, import_cybersecurity_csv
 from monitoring.services import (
     FEATURE_COLUMNS,
     evaluate_detector,
+    flag_download_burst_if_needed,
     log_record_access,
     run_isolation_forest_detection,
 )
@@ -305,49 +309,14 @@ def _ensure_seed_data() -> None:
             },
         )
 
-    if not AccessLog.objects.filter(is_flagged=True).exists():
-        nurse = User.objects.filter(username=_staff_id_to_username("NUR-1142")).first()
-        doctor = User.objects.filter(username=_staff_id_to_username("DOC-0458")).first()
-        patient_342 = PatientRecord.objects.filter(hospital_id="PAT-000342").first()
-        patient_501 = PatientRecord.objects.filter(hospital_id="PAT-000501").first()
-        sample_alerts = [
-            (
-                nurse,
-                patient_342,
-                AccessLog.AlertSeverity.CRITICAL,
-                96.0,
-                "Bulk record export from shared workstation outside shift hours",
-            ),
-            (
-                nurse,
-                patient_501,
-                AccessLog.AlertSeverity.HIGH,
-                82.0,
-                "Access burst: 36 records in 11 minutes by NUR-1142",
-            ),
-            (
-                doctor,
-                patient_501,
-                AccessLog.AlertSeverity.MEDIUM,
-                61.0,
-                "Repeated off-pattern access to non-assigned patient records",
-            ),
-        ]
-        for user, patient, severity, risk_score, summary in sample_alerts:
-            if not user or not patient:
-                continue
-            AccessLog.objects.create(
-                user=user,
-                role_snapshot=user.profile.role if hasattr(user, "profile") else RoleChoices.NURSE,
-                patient_record=patient,
-                action=AccessLog.AccessAction.VIEW,
-                is_flagged=True,
-                anomaly_score=risk_score / 100.0,
-                risk_score=risk_score,
-                alert_severity=severity,
-                alert_status=AccessLog.AlertStatus.OPEN,
-                notes=summary[:255],
-            )
+    # Prefer real dataset ingestion over synthetic sample alerts.
+    if not AccessLog.objects.filter(notes__contains=DATASET_MARKER).exists():
+        try:
+            base_dir = Path(__file__).resolve().parents[1]
+            import_cybersecurity_csv(csv_path=base_dir / "cybersecurity.csv")
+        except Exception:
+            # Keep UI usable even if CSV import fails (e.g., missing file).
+            pass
 
     case, _ = InvestigationCase.objects.get_or_create(
         case_reference="CASE-2026-014",
@@ -586,6 +555,7 @@ def hrms_logout(request: HttpRequest) -> HttpResponse:
 @role_guard("admin")
 def admin_dashboard(request: HttpRequest) -> HttpResponse:
     today = timezone.now().date()
+    now = timezone.now()
     active_sessions = Session.objects.filter(expire_date__gte=timezone.now()).count()
     flagged_open = AccessLog.objects.filter(is_flagged=True, alert_status=AccessLog.AlertStatus.OPEN).count()
     latest_detection_run = DetectionRun.objects.order_by("-started_at").first()
@@ -625,7 +595,7 @@ def admin_dashboard(request: HttpRequest) -> HttpResponse:
             "patient": log.patient_record.hospital_id if log.patient_record else "-",
             "action": log.action,
             "ip": log.ip_address or "-",
-            "source": "Synthetic" if log.is_simulated else "Live",
+            "source": "Dataset" if (DATASET_MARKER in (log.notes or "")) else "Live",
         }
         for log in recent_access_logs
     ]
@@ -650,6 +620,51 @@ def admin_dashboard(request: HttpRequest) -> HttpResponse:
         "feature_columns": FEATURE_COLUMNS,
         "default_contamination": 0.08,
     }
+
+    # --- Premium analytics (DB-driven) ---
+    trend_window_days = 14
+    trend_start = now - timedelta(days=trend_window_days)
+    flagged_daily = (
+        AccessLog.objects.filter(is_flagged=True, accessed_at__gte=trend_start)
+        .annotate(bucket=TruncDate("accessed_at"))
+        .values("bucket")
+        .annotate(count=Count("id"))
+        .order_by("bucket")
+    )
+    context["chart_flagged_daily_labels"] = [
+        (item["bucket"].strftime("%b %d") if item["bucket"] else "-") for item in flagged_daily
+    ]
+    context["chart_flagged_daily_values"] = [int(item["count"]) for item in flagged_daily]
+
+    severity_counts = (
+        AccessLog.objects.filter(is_flagged=True, alert_status=AccessLog.AlertStatus.OPEN)
+        .exclude(alert_severity="")
+        .values("alert_severity")
+        .annotate(count=Count("id"))
+        .order_by("alert_severity")
+    )
+    context["chart_severity_labels"] = [str(item["alert_severity"]).title() for item in severity_counts]
+    context["chart_severity_values"] = [int(item["count"]) for item in severity_counts]
+
+    downloads_start = now - timedelta(hours=24)
+    downloads_hourly = (
+        AccessLog.objects.filter(action=AccessLog.AccessAction.DOWNLOAD, accessed_at__gte=downloads_start)
+        .annotate(bucket=TruncHour("accessed_at"))
+        .values("bucket")
+        .annotate(count=Count("id"))
+        .order_by("bucket")
+    )
+    context["chart_downloads_hourly_labels"] = [
+        (item["bucket"].strftime("%H:%M") if item["bucket"] else "-") for item in downloads_hourly
+    ]
+    context["chart_downloads_hourly_values"] = [int(item["count"]) for item in downloads_hourly]
+
+    context["top_downloaders"] = list(
+        AccessLog.objects.filter(action=AccessLog.AccessAction.DOWNLOAD, accessed_at__gte=downloads_start)
+        .values("user__username")
+        .annotate(downloads=Count("id"), unique_records=Count("patient_record_id", distinct=True))
+        .order_by("-downloads", "user__username")[:8]
+    )
     return render(request, "hrms/admin_dashboard.html", context)
 
 
@@ -715,11 +730,11 @@ def run_evaluation_action(request: HttpRequest) -> HttpResponse:
         if not (0.0 < threshold_quantile < 1.0):
             messages.error(request, "Threshold quantile must be between 0 and 1.")
             return redirect("hrms-admin-dashboard")
-    logs = AccessLog.objects.filter(is_simulated=True).order_by("accessed_at")
+    logs = AccessLog.objects.filter(notes__contains=DATASET_MARKER).order_by("accessed_at")
     if not logs.exists():
         messages.error(
             request,
-            "No simulated dataset found. Run generate_synthetic_logs first, then evaluate.",
+            "No imported dataset found. Run `python manage.py import_cybersecurity_csv` first, then evaluate.",
         )
         return redirect("hrms-admin-dashboard")
 
@@ -1215,6 +1230,61 @@ def patient_record_page(request: HttpRequest, pk: int) -> HttpResponse:
     context["recent_notes"] = NursingNote.objects.filter(patient_record=patient)[:5]
     context["last_access_reason"] = request.session.get("hrms_last_access_reason", "")
     return render(request, "hrms/patient_record.html", context)
+
+
+@role_guard("nurse", "doctor", "admin")
+def download_patient_record_action(request: HttpRequest, pk: int) -> HttpResponse:
+    denied = _require_permission(request, "view_patient")
+    if denied:
+        return denied
+    patient = get_object_or_404(PatientRecord, id=pk)
+    actor = _actor_or_fallback_user(request)
+
+    log_record_access(
+        user=actor,
+        patient_record=patient,
+        action=AccessLog.AccessAction.DOWNLOAD,
+        request=request,
+        notes="Patient record downloaded",
+    )
+    _log_audit_event(
+        request,
+        action_type="download_patient_record",
+        patient_ref=patient.hospital_id,
+        details="Record exported as CSV",
+    )
+
+    # Flag rapid download behavior.
+    flag_download_burst_if_needed(user=actor, window_minutes=10, threshold=10)
+
+    buffer = StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(
+        [
+            "hospital_id",
+            "full_name",
+            "date_of_birth",
+            "diagnosis",
+            "notes",
+            "created_at",
+            "updated_at",
+        ]
+    )
+    writer.writerow(
+        [
+            patient.hospital_id,
+            patient.full_name,
+            patient.date_of_birth.isoformat() if patient.date_of_birth else "",
+            patient.diagnosis,
+            patient.notes,
+            patient.created_at.isoformat() if patient.created_at else "",
+            patient.updated_at.isoformat() if patient.updated_at else "",
+        ]
+    )
+
+    response = HttpResponse(buffer.getvalue(), content_type="text/csv")
+    response["Content-Disposition"] = f"attachment; filename=record_{patient.hospital_id}.csv"
+    return response
 
 
 def _to_int(value: str, field: str):

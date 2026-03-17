@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import os
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -86,3 +88,46 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "patient-list"
 LOGOUT_REDIRECT_URL = "login"
+
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def _env_csv(name: str, default: str = "") -> list[str]:
+    raw = os.environ.get(name, default)
+    parts = [p.strip() for p in raw.split(",")]
+    return [p for p in parts if p]
+
+
+# Mailjet (transactional alerts)
+MAILJET_API_KEY_PUBLIC = os.environ.get("MJ_APIKEY_PUBLIC", "")
+MAILJET_API_KEY_PRIVATE = os.environ.get("MJ_APIKEY_PRIVATE", "")
+MAILJET_FROM_EMAIL = os.environ.get("MAILJET_FROM_EMAIL", "")
+MAILJET_FROM_NAME = os.environ.get("MAILJET_FROM_NAME", "Hospital Monitor")
+
+# Comma-separated recipients. Default matches your request.
+ALERT_EMAIL_TO = _env_csv("ALERT_EMAIL_TO", "gmutakura8@gmail.com")
+
+# Enabled only when explicitly enabled AND keys are present.
+ALERT_EMAIL_ENABLED = _env_bool("ALERT_EMAIL_ENABLED", True) and bool(
+    MAILJET_API_KEY_PUBLIC and MAILJET_API_KEY_PRIVATE and ALERT_EMAIL_TO
+)
+
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {"class": "logging.StreamHandler"},
+    },
+    "loggers": {
+        "monitoring.notifications": {
+            "handlers": ["console"],
+            "level": "INFO",
+        },
+    },
+}

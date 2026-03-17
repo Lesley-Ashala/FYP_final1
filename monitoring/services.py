@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import timedelta
 from time import perf_counter
 
 from django.db.models import QuerySet
 from django.utils import timezone
 
 from monitoring.models import AccessLog, DetectionRun, EvaluationResult, RoleChoices
+from monitoring.notifications import send_flagged_accesslog_alert
 from monitoring.permissions import get_user_role
 
 try:
@@ -119,6 +121,73 @@ def log_record_access(
         notes=notes[:255],
         accessed_at=accessed_at or timezone.now(),
     )
+
+
+def flag_download_burst_if_needed(
+    *,
+    user,
+    window_minutes: int = 10,
+    threshold: int = 10,
+) -> bool:
+    """Flag rapid successive downloads by the same user.
+
+    When a user downloads many records within a short time window, we flag the
+    most recent download event as suspicious and open/reopen an alert.
+    """
+    if not user or not getattr(user, "is_authenticated", False):
+        return False
+    if window_minutes <= 0 or threshold <= 1:
+        return False
+
+    now = timezone.now()
+    start = now - timedelta(minutes=window_minutes)
+    recent = (
+        AccessLog.objects.filter(
+            user=user,
+            action=AccessLog.AccessAction.DOWNLOAD,
+            accessed_at__gte=start,
+        )
+        .order_by("-accessed_at")
+    )
+    download_count = recent.count()
+    if download_count < threshold:
+        return False
+
+    latest = recent.first()
+    if not latest:
+        return False
+    if latest.is_flagged and (latest.notes or "").lower().startswith("download burst"):
+        return False
+
+    # Risk increases with burst size.
+    overflow = max(0, download_count - threshold)
+    risk_score = min(99.0, 75.0 + overflow * 2.5)
+    severity = AccessLog.AlertSeverity.CRITICAL if download_count >= threshold * 2 else AccessLog.AlertSeverity.HIGH
+    latest.is_flagged = True
+    latest.anomaly_score = round(risk_score / 100.0, 4)
+    latest.risk_score = round(risk_score, 2)
+    latest.alert_severity = severity
+    latest.alert_status = AccessLog.AlertStatus.OPEN
+    latest.notes = (
+        f"Download burst: {download_count} records in {window_minutes} minutes"
+    )[:255]
+    latest.save(
+        update_fields=[
+            "is_flagged",
+            "anomaly_score",
+            "risk_score",
+            "alert_severity",
+            "alert_status",
+            "notes",
+        ]
+    )
+
+    # Notify only once per flagged burst event.
+    try:
+        send_flagged_accesslog_alert(latest)
+    except Exception:
+        pass
+    return True
 
 
 def extract_features(df: pd.DataFrame) -> pd.DataFrame:
@@ -333,11 +402,14 @@ def run_isolation_forest_detection(
     log_ids = meta["id"].tolist()
     id_to_position = {log_id: idx for idx, log_id in enumerate(log_ids)}
     logs_to_update: list[AccessLog] = []
+    logs_to_email: list[AccessLog] = []
     score_min = float(anomaly_scores.min())
     score_max = float(anomaly_scores.max())
     automated_alerts_created = 0
 
-    for log in AccessLog.objects.filter(id__in=log_ids):
+    for log in (
+        AccessLog.objects.select_related("user", "patient_record").filter(id__in=log_ids)
+    ):
         position = id_to_position[log.id]
         was_flagged = bool(log.is_flagged)
         previous_status = log.alert_status
@@ -356,6 +428,7 @@ def run_isolation_forest_detection(
                 log.closed_reason = ""
             if (not was_flagged) or (previous_status == AccessLog.AlertStatus.CLOSED):
                 automated_alerts_created += 1
+                logs_to_email.append(log)
             if not log.notes or log.notes.startswith("auto:"):
                 log.notes = (
                     f"auto: IsolationForest run #{run.id} flagged this event "
@@ -380,6 +453,10 @@ def run_isolation_forest_detection(
                 "closed_reason",
             ],
         )
+
+    if logs_to_email:
+        for log in logs_to_email:
+            send_flagged_accesslog_alert(access_log=log, detection_run_id=run.id)
 
     anomalies_flagged = int(is_flagged_mask.sum())
     total_events = len(log_ids)

@@ -1,0 +1,17 @@
+Hospital Monitor - Flagged Access Event
+
+Alert: {{ alert_id }}
+Severity: {{ severity }}
+Status: {{ access_log.alert_status|default:"—" }}
+Detection run: #{{ detection_run_id }}
+
+Timestamp (UTC): {{ timestamp_utc|date:"Y-m-d H:i:s" }}Z
+Database PK: {{ access_log.id }}
+User: {{ access_log.user.username }}{% if access_log.user.email %} ({{ access_log.user.email }}){% endif %}
+Role: {{ access_log.role_snapshot }}
+Action: {{ access_log.action }}
+Patient: {% if access_log.patient_record %}{{ access_log.patient_record.hospital_id }} - {{ access_log.patient_record.full_name }}{% else %}N/A{% endif %}
+IP: {{ access_log.ip_address|default:"—" }}
+Risk score: {{ access_log.risk_score|default:"—" }}
+Anomaly score: {{ access_log.anomaly_score|default:"—" }}
+Notes: {{ access_log.notes|default:"—" }}

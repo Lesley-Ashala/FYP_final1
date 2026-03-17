@@ -11,6 +11,7 @@ from django.views.generic import CreateView, DeleteView, DetailView, ListView, U
 
 from monitoring.forms import PatientRecordForm
 from monitoring.models import AccessLog, EvaluationResult, PatientRecord, RoleChoices
+from monitoring.real_data import DATASET_MARKER
 from monitoring.permissions import RoleRequiredMixin, get_user_role, user_has_any_role
 from monitoring.services import evaluate_detector, log_record_access, run_isolation_forest_detection
 
@@ -162,8 +163,6 @@ class AccessLogListView(RoleRequiredMixin, ListView):
             queryset = queryset.filter(action=action_query)
         if source_query == "live":
             queryset = queryset.filter(is_simulated=False)
-        elif source_query == "synthetic":
-            queryset = queryset.filter(is_simulated=True)
         if flagged_query == "yes":
             queryset = queryset.filter(is_flagged=True)
         elif flagged_query == "no":
@@ -257,11 +256,11 @@ def run_detection_view(request: HttpRequest) -> HttpResponseRedirect:
 @user_passes_test(_admin_only)
 @require_POST
 def run_evaluation_view(request: HttpRequest) -> HttpResponseRedirect:
-    logs = AccessLog.objects.filter(is_simulated=True).order_by("accessed_at")
+    logs = AccessLog.objects.filter(notes__contains=DATASET_MARKER).order_by("accessed_at")
     if not logs.exists():
         messages.error(
             request,
-            "No simulated data available. Run `python manage.py generate_synthetic_logs` first.",
+            "No imported dataset available. Run `python manage.py import_cybersecurity_csv` first.",
         )
         return redirect("evaluation-list")
 

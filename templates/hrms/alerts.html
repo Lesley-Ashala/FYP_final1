@@ -9,67 +9,6 @@
     </div>
 </div>
 
-<!-- Analytics strip -->
-<section class="card" style="margin-bottom:14px;">
-    <div class="card-header">
-        <div>
-            <h3 class="card-title">Predictive Alert Analytics</h3>
-            <p class="card-note">Forecasted alert load based on the recent 48-hour anomaly trend.</p>
-        </div>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:14px;">
-        <div class="pill" style="justify-content:space-between;">
-            <span style="color:var(--gray-400);font-size:0.72rem;">Recent 24h</span>
-            <strong>{{ alert_analytics.recent_24h_count }}</strong>
-        </div>
-        <div class="pill" style="justify-content:space-between;">
-            <span style="color:var(--gray-400);font-size:0.72rem;">Previous 24h</span>
-            <strong>{{ alert_analytics.previous_24h_count }}</strong>
-        </div>
-        <div class="pill" style="justify-content:space-between;">
-            <span style="color:var(--gray-400);font-size:0.72rem;">Next hour</span>
-            <strong>{{ alert_analytics.predicted_next_hour }}</strong>
-        </div>
-        <div class="pill" style="justify-content:space-between;">
-            <span style="color:var(--gray-400);font-size:0.72rem;">Next 24h</span>
-            <strong>{{ alert_analytics.predicted_next_24h }}</strong>
-        </div>
-        <div class="pill" style="justify-content:space-between;">
-            <span style="color:var(--gray-400);font-size:0.72rem;">Trend</span>
-            {% if alert_analytics.growth_percent > 0 %}
-            <strong style="color:var(--danger-500);">
-            {% else %}
-            <strong style="color:var(--success-500);">
-            {% endif %}
-                {{ alert_analytics.growth_percent }}%
-            </strong>
-        </div>
-        <div class="pill" style="justify-content:space-between;">
-            <span style="color:var(--gray-400);font-size:0.72rem;">Open alerts</span>
-            <strong>{{ alert_analytics.open_alerts }}</strong>
-        </div>
-        <div class="pill" style="justify-content:space-between;">
-            <span style="color:var(--gray-400);font-size:0.72rem;">Critical open</span>
-            <strong style="color:var(--danger-500);">{{ alert_analytics.critical_open_alerts }}</strong>
-        </div>
-        <div class="pill" style="justify-content:space-between;">
-            <span style="color:var(--gray-400);font-size:0.72rem;">Rec. quantile</span>
-            <strong style="font-family:var(--font-mono);">{{ alert_analytics.recommended_quantile }}</strong>
-        </div>
-    </div>
-    <form method="post" action="{% url 'hrms-run-detection' %}" class="button-row">
-        {% csrf_token %}
-        <input type="number" step="0.01" min="0.01" max="0.50" name="contamination"
-               value="0.08" style="max-width:130px;" placeholder="Contamination">
-        <input type="number" step="0.01" min="0.01" max="0.99" name="threshold_quantile"
-               value="{{ alert_analytics.recommended_quantile }}" style="max-width:150px;" placeholder="Threshold quantile">
-        <button class="btn" type="submit">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-            Run Auto Detection
-        </button>
-    </form>
-</section>
-
 <!-- Alert queue + Detail panel -->
 <div class="split" style="align-items:start;">
 
